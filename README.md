@@ -1,4 +1,4 @@
 uvspecgen
 =========
 
-Generate absorption spectrum from TDHF/TDDFT data
+Generate UV-vis absorption spectrum from TDHF/TDDFT data
