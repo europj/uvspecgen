@@ -1,8 +1,15 @@
+#!/usr/bin/python
+
 #Coding project #1
 #Generating an Absorption Spectrum
 
 from math import *
-from pylab import *
+try:
+    from matplotlib.pyplot import *
+    mkplt = True
+except ImportError:
+    print 'matplotlib.pyplot is required to plot the spectrum'
+    mkplt = False
 
 
 def genAbsSpec(logfile):
