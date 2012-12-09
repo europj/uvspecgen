@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
-#Coding project #1
-#Generating an Absorption Spectrum
+# uvspecgen 
+# Generate a UV-vis absorption spectrum from a Gaussian TDHF/TDDFT calculation
 
 from math import *
 try:
