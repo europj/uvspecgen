@@ -39,6 +39,38 @@ except ImportError:
     print 'matplotlib.pylot is required to plot the spectrum'
     mkplt = False
 
+#
+# CLASSES
+#
+
+class CommandLineInput():
+    def __init__(self, version=__version__):
+        self.header = '%(prog)s' + ' ' + version
+        input = self._parse_command_line_input(self.header)
+
+
+    def _parse_command_line_input(self, header):
+        """Function
+        """
+        parser = arp.ArgumentParser(
+            formatter_class=arp.RawDescriptionHelpFormatter,
+            description = 'Generate UV-vis spectrom from TDHF/TDDFT data',
+            epilog = dedent('''\
+                            author:\n\
+                              J.W. May  ~~  Li Research Group  ~~  MMM DD, YYY\n\n\
+                            bugs:\n\
+                              Report bugs to <jwmay@uw.edu>'''))
+        parser.add_argument(
+            '--version',
+             action = 'version',
+            version = header)
+        args = parser.parse_args()
+        return args
+
+#
+# LOCAL FUNCTIONS
+#
+
 def genAbsSpec(logfile):
     ''' This function takes in the direction to a .log file and creates a .spec text file
             in the same location containing the excited states from the logfile and their
@@ -118,8 +150,12 @@ def delspaces(L):
     elif L[0]!='':
         return [L[0]]+delspaces(L[1:])
 
+#
+# MAIN PROGRAM
+#
+
+option = CommandLineInput()
+
 logfilename=raw_input('Enter logfile: ')            # run this function as a script-prompting for input
 
 genAbsSpec(logfilename)
-
-    
