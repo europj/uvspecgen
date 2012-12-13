@@ -1,7 +1,26 @@
 #!/usr/bin/python
 
-# uvspecgen 
-# Generate a UV-vis absorption spectrum from a Gaussian TDHF/TDDFT calculation
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+#
+#                                   UVSPECGEN
+#
+# Copyright (C) 2012; Li Research Group; University of Washington; Seattle, WA
+#
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
+
+'''
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+*
+*                               FILE DESCRIPTION
+*
+* Filename      : uvspecgen.py
+* Version       : 1.0.0
+* Programmer(s) : JWM
+* Updated on    : 12.12.12
+* Created on    : 07.11.12
+*
+* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+'''
 
 from math import *
 try:
