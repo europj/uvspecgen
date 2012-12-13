@@ -22,14 +22,22 @@
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 '''
 
+__version__ = '1.0.0'
+
+#
+# MODULES
+#
+
+import argparse as arp
+from textwrap import dedent
+
 from math import *
 try:
     from matplotlib.pyplot import *
     mkplt = True
 except ImportError:
-    print 'matplotlib.pyplot is required to plot the spectrum'
+    print 'matplotlib.pylot is required to plot the spectrum'
     mkplt = False
-
 
 def genAbsSpec(logfile):
     ''' This function takes in the direction to a .log file and creates a .spec text file
