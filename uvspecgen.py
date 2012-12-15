@@ -1,4 +1,8 @@
+#!/Library/Frameworks/Python.framework/Versions/Current/bin/python
+
+'''
 #!/usr/bin/python
+'''
 
 # * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
@@ -22,7 +26,9 @@
 * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
 '''
 
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 # SET PROGRAM DEFAULTS HERE
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 defaults = dict(
     grid  = 0.02,
     range = 2.50,
@@ -32,24 +38,21 @@ defaults = dict(
 
 __version__ = '1.0.0'
 
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
 # MODULES
 #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 import argparse as arp
-import sys
+from math import e
 
-from math import *
-try:
-    from matplotlib.pyplot import *
-    mkplt = True
-except ImportError:
-    print 'matplotlib.pylot is required to plot the spectrum'
-    mkplt = False
 
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
 # CLASSES
 #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
 class CommandLineInput():
     def __init__(self, version=__version__, default=defaults):
@@ -57,6 +60,7 @@ class CommandLineInput():
         self.input = self._parse_command_line_input(self.header, default)
         self.logfile = self.input.logfile
         self.outfile = self.input.outfile
+        self.plot = self.input.plot
         self.fit_parameters = dict(
             grid = self.input.grid,
             range = self.input.range,
@@ -90,9 +94,7 @@ class CommandLineInput():
         # Optional positional argument, the output file name
         parser.add_argument(
             'outfile',
-            nargs = '?',
-            default = gen_outfile,
-            type = arp.FileType('w'))
+            nargs = '?')
         
         # Optional arguments, to control the parameters of the Gaussian fit
         parser.add_argument(
@@ -119,6 +121,14 @@ class CommandLineInput():
             default = default['shift'],
             type = float,
             help = 'set shift for the starting point of the Gaussian curve')
+
+        # Optional flag to plot the spectrum using matplotlib, if available
+        parser.add_argument(
+            '-p',
+            '--plot',
+            action = 'store_true',
+            help = 'display a plot of the absorbance spectrum if matplotlib is\
+                available')
         
         # Print program version
         parser.add_argument(
@@ -128,12 +138,14 @@ class CommandLineInput():
         args = parser.parse_args()
         return args
 
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
 # LOCAL FUNCTIONS
 #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
-def gen_outfile(logfile):
-    """gen_outfile(logfile : string) -> [string]
+def generate_outfile(logfile):
+    """generate_outfile(logfile : string) -> [string]
     
     Removes the log extension from the input file (of the form filename.log)
     and appends the spec extension for the output file
@@ -143,77 +155,88 @@ def gen_outfile(logfile):
     return outfile
 
 
-def genAbsSpec(logfile):
+def generate_spectrum(plot_range, grid_spacing, excited_state, intensity,
+                      energy, absorbance):
     ''' This function takes in the direction to a .log file and creates a .spec text file
             in the same location containing the excited states from the logfile and their
             oscillator strengths, as well as the coordinates for points of a spectrum
             (osc. strength vs. energy). It also generates this graph. 
+    
     '''
-    Emin=0.0                                        # Energy shift
-    sigma=0.12                                      # Broadening parameter
-    dEstep=0.02                                     # Step between energy points calculated for graph
-    dErange=2.5                                     # Range of graph/output is between dErange less than the smallest excited state
-                                                    # energy and dErange greater than the largest excited state energy (see *)
-    log=open(logfile)                               # open file
-    ExcitedState=[]                                 # create lists for excited states, oscilator strength, and energy and absorbanvce vectors for graph
-    Intensity=[]
-    Evec=[] 
-    A=[]                                    
+    # Range of graph/output is between plot_range less than the smallest
+    # excited state energy and plot_range greater than the largest excited
+    # state energy 
+    max_energy = plot_range + max(excited_state) 
+    min_energy = min(excited_state) - plot_range
+    point = min_energy
     
-    for line in log:                                # read logfile and extract the excited states and oscilator strengths, storing
-        if line.startswith(' Excited State '):      # them in the appropriate lists
-            words=line.split(' ')
-            words=delspaces(words)
-            ExcitedState+=[float(words[4])]
-            Intensity+=[float(words[8][2:])]
-            
-    maxE=dErange+max(ExcitedState)                  # *
-    minE=min(ExcitedState)-dErange
-    n=minE
-    while n<=maxE:                                  # create energy points for graph
-        Evec+=[n]
-        n+=dEstep
+    # Generate grid of energy points for the absorbance spectrum
+    while point <= max_energy:
+        energy.append(point)
+        point += grid_spacing
 
-    for En in Evec:                                 # create absorbance spectra points for each energy point for graph
-        a=0
-        for index in range(len(ExcitedState)):
-            a+=Intensity[index]*e**(-0.5*((En+Emin-ExcitedState[index])**2)/(sigma**2))
-        A+=[a]
+    # create absorbance spectrum points for each energy point for graph
+    for point in energy:
+        a = 0.0
+        for state in range(len(excited_state)):
+            a += intensity[state]*e**(-0.5*((point + shift - 
+                                             excited_state[state])**2)/(sigma**2))
+        absorbance.append(a)
         
-#    newfilename=logfile[:-3]+'spec'                 # write new file with information gleaned
-    newfile=open(newfilename,'w')
+    
+def create_outfile(outfile_name, excited_state, intensity, Evec, A):
+    """create_outfile()
+
+    Add function def
+
+    """
+    outfile=open(outfile_name, 'w')
     sn=1
-    newfile.write(repr('Excited States:')[1:-1].rjust(18))
-    newfile.write(repr('Energy Level(eV)')[1:-1].rjust(22))
-    newfile.write(repr('Intensity')[1:-1].rjust(20))
-    newfile.write('\n')
-    for state in range(len(ExcitedState)):
-        newfile.write(repr('Excited State')[1:-1].rjust(15))
-        newfile.write(repr(sn).rjust(4))
-        newfile.write(repr(ExcitedState[state]).rjust(20))
-        newfile.write(repr(Intensity[state]).rjust(20))
-        newfile.write('\n')
+    outfile.write(repr('Excited States:')[1:-1].rjust(18))
+    outfile.write(repr('Energy Level(eV)')[1:-1].rjust(22))
+    outfile.write(repr('Intensity')[1:-1].rjust(20))
+    outfile.write('\n')
+    for state in range(len(excited_state)):
+        outfile.write(repr('Excited State')[1:-1].rjust(15))
+        outfile.write(repr(sn).rjust(4))
+        outfile.write(repr(excited_state[state]).rjust(20))
+        outfile.write(repr(intensity[state]).rjust(20))
+        outfile.write('\n')
         sn+=1
-    newfile.write('\n')
-    newfile.write(repr('Gaussian Fit Absorbance Energy(eV)')[1:-1].rjust(35))
-    newfile.write(repr('Intensity')[1:-1].rjust(30))
-    newfile.write('\n')
+    outfile.write('\n')
+    outfile.write(repr('Gaussian Fit Absorbance Energy(eV)')[1:-1].rjust(35))
+    outfile.write(repr('Intensity')[1:-1].rjust(30))
+    outfile.write('\n')
     for level in range(len(Evec)):
-        newfile.write(repr(Evec[level]).rjust(25))
-        newfile.write(repr(A[level]).rjust(40))
-        newfile.write('\n')
-        
-    if mkplt:
-        xlabel("Energy(eV)")                            # creat absorbance graph
-        ylabel("Oscillator Strength")
-        plot(Evec,A,'k')
-        show()
+        outfile.write(repr(Evec[level]).rjust(25))
+        outfile.write(repr(A[level]).rjust(40))
+        outfile.write('\n')
 
+
+
+def get_excited_states(logfile, excited_state, intensity):
+    """get_excited_states(logfile : string, excited_state : list, intensity :
+        list)
     
-  
+    Reads each line of the logfile looking for the 'Excited State' keyword at
+    the beginning of the line.  Extracts the excited state energy and
+    oscillator strength and stores the values in the appropriate list.
+
+    """
+    for line in logfile:                                
+        if line.startswith(' Excited State '):      
+            words = line.split(' ')
+            words = delspaces(words)
+            excited_state += [float(words[4])]
+            intensity += [float(words[8][2:])]
+            
+
 def delspaces(L):
-    ''' This function takes a list and recursively removes any empty strings from the list.
-            (returning the list without empty strings)
+    '''delspaces(L : list) -> [list]
+    
+    Input a list and recursively remove all items containing only empty
+    strings and return the list without empty strings.
+
     '''
     if len(L)==0:
         return L
@@ -222,20 +245,87 @@ def delspaces(L):
     elif L[0]!='':
         return [L[0]]+delspaces(L[1:])
 
+
+def plot_spectrum(energy, absorbance):
+    """plot_spectrum(energy : list, absorbance : list)
+    
+    Plot the absorbance spectrum as A versus Evec with appropriate axis labels.
+    This is done using the matplotlib module, which is not distributed as part
+    of the Python Standard Library.  Thus, a check is performed to determine if
+    this module is available, only if the plot option is selected; otherwise,
+    an error message is returned.
+
+    """
+    try:
+        import matplotlib.pyplot as plt 
+        plt.xlabel("Energy (eV)")
+        plt.ylabel("Oscillator strength")
+        plt.plot(energy, absorbance, 'k')
+        plt.show()
+    except ImportError:
+        print '[ERROR] matplotlib.pylot is required to plot the spectrum'
+    
+
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 #
 # MAIN PROGRAM
 #
+# * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * 
 
+# options is an instance of the CommandLineInput class, which provides the
+# command-line user interface and help documentation.  All input parameters are
+# attributes of this class, including: logfile, outfile, the plot flag and the
+# fit parameters stored in the fit_parameters dictionary with the keys grid,
+# range, sigma, and shift.
 options = CommandLineInput()
-print options.logfile
-print options.outfile
-print options.fit_parameters['grid']
-print options.fit_parameters['range']
-print options.fit_parameters['sigma']
-print options.fit_parameters['shift']
-outfile = gen_outfile(options.input.logfile.name)
-print outfile
+logfile = options.logfile
 
-#logfilename=raw_input('Enter logfile: ')            # run this function as a script-prompting for input
+# User may choose to specify name of output file, otherwise, the default name
+# will be the logfile name with the .spec extension.
+if options.outfile == None:
+    outfile_name = generate_outfile(logfile.name)
+else:
+    outfile_name = options.outfile
 
-#genAbsSpec(logfilename)
+# Assign plot flag and fit parameters (attributes of options) to variables
+plot = options.plot
+grid = options.fit_parameters['grid']
+plot_range = options.fit_parameters['range']
+sigma = options.fit_parameters['sigma']
+shift = options.fit_parameters['shift']
+
+# DEBUG PRINTING
+print logfile
+print grid
+print plot_range
+print sigma
+print shift
+print outfile_name
+# END
+
+# Create lists for the excited states and oscillator strengths extracted from
+# the logfile, as well as for the energies and absorbance values generated from
+# the fit.
+excited_state = []                                 
+intensity = []
+energy = [] 
+absorbance = []                                    
+
+# Extract the excited state energies and intensities from the logfile
+get_excited_states(logfile, excited_state, intensity)
+
+# Fit the extracted excited states with Gaussians and sum to obtain the total
+# absorbance spectrum
+generate_spectrum(plot_range, grid, excited_state, intensity, energy,
+                  absorbance)
+
+# Write the extracted excited states and oscillator strengths, as well as the
+# Gaussian-fitted absorbance spectrum to the outfile
+create_outfile(outfile_name, excited_state, intensity, energy, absorbance)
+
+# Plot the spectrum, if requested
+if plot:
+    plot_spectrum(energy, absorbance)
+else:
+    # DEBUG PRINTING
+    print 'Plotting skipped'
