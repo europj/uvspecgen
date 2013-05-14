@@ -43,7 +43,7 @@ class CommandLineInput():
         self.logfile = self.input.logfile
         self.outfile = self.input.outfile
         self.plot = self.input.plot
-        self.fit_parameters = dict(
+        self.parameters = dict(
             grid = self.input.grid,
             range = self.input.range,
             sigma = self.input.sigma,
@@ -119,20 +119,20 @@ class CommandLineInput():
         return args
 
 
-class Absorbance_Spectrum:
-    def __init__(self, params):
-        self.plot = params.plot
-        self.grid = params.fit_parameters['grid']
-        self.sigma = params.fit_parameters['sigma']
-        self.shift = params.fit_parameters['shift']
-        self.plot_range = paras.fit_parameters['range']
+class AbsorbanceSpectrum:
+    def __init__(self, logfile, params):
+        self.logfile = logfile
+        self.grid = params['grid']
+        self.sigma = params['sigma']
+        self.shift = params['shift']
+        self.plot_range = params['range']
         
         self.energy = [] 
         self.intensity = []
         self.absorbance = []                                    
         self.excited_state = []                                 
 
-    def get_excited_states(self, logfile, excited_state, intensity):
+    def get_excited_states(self):
         """Read in the excited states and oscillator strengths.
         
         Read each line of the logfile looking for the 'Excited State'
@@ -141,19 +141,18 @@ class Absorbance_Spectrum:
         appropriate list.
     
         """
-        for line in logfile:                                
+        for line in self.logfile:                                
             if line.startswith(' Excited State '):      
                 words = line.split(' ')
                 words = delspaces(words)
-                excited_state += [float(words[4])]
-                intensity += [float(words[8][2:])]
+                self.excited_state += [float(words[4])]
+                self.intensity += [float(words[8][2:])]
     
-    def generate_spectrum(self, plot_range, grid_spacing, excited_state,
-                          intensity, energy, absorbance):
+    def generate_spectrum(self):
         """Fit the sticks with Gaussians to generate line shape.
     
         Given the lists excited_state and intensity, this function generates
-        a grid of energy data points separated by grid_spacing between the
+        a grid of energy data points separated by grid between the
         range plot_range above and below the largest and smallest energy 
         excited states.  The excited state peaks are then fit with Gaussian
         functions, which are summed together to give the final absorbance.
@@ -164,14 +163,14 @@ class Absorbance_Spectrum:
         # Range of graph/output is between plot_range less than the smallest
         # excited state energy and plot_range greater than the largest excited
         # state energy 
-        max_energy = plot_range + max(excited_state) 
-        min_energy = min(excited_state) - plot_range
+        max_energy = self.plot_range + max(self.excited_state) 
+        min_energy = min(self.excited_state) - self.plot_range
         point = min_energy
         
         # Generate grid of energy points for the absorbance spectrum
         while point <= max_energy:
-            energy.append(point)
-            point += grid_spacing
+            self.energy.append(point)
+            point += self.grid
     
         # For every grid point in the energy list, compute the absorbance
         # according to the following equation:
@@ -181,16 +180,15 @@ class Absorbance_Spectrum:
         # each S excited state and is a function of the energy, X.  Int is
         # the intensity, SFT is the shift, ES is the excited state, and SIG
         # is the sigma broadening constant.
-        for point in energy:
+        for point in self.energy:
             absorb_fit = 0.0
-            for state in range(len(excited_state)):
-                absorb_fit += intensity[state]*e**(-0.5*((point + shift - 
-                                                 excited_state[state])**2)/
-                                                   (sigma**2))
-            absorbance.append(absorb_fit)
+            for state in range(len(self.excited_state)):
+                absorb_fit += self.intensity[state]*e**(-0.5*((point +
+                                self.shift - self.excited_state[state])**2)/
+                                (self.sigma**2))
+            self.absorbance.append(absorb_fit)
             
-    def create_outfile(self, outfile_name, grid_spacing, sigma, shift,
-                       excited_state, intensity, energy, absorbance):
+    def create_outfile(self, outfile_name):
         """Write the output file.
     
         Write the UV-Vis stick spectrum and line shape data to the output file. 
@@ -201,23 +199,23 @@ class Absorbance_Spectrum:
        
         # Print the fit meta data to the top of the output file
         outfile.write('Grid Spacing = '.rjust(17))
-        outfile.write(str(grid_spacing).rjust(5))
+        outfile.write(str(self.grid).rjust(5))
         outfile.write('\n')
         outfile.write('Sigma = '.rjust(17))
-        outfile.write(str(sigma).rjust(5))
+        outfile.write(str(self.sigma).rjust(5))
         outfile.write('\n')
         outfile.write('Shift = '.rjust(17))
-        outfile.write(str(shift).rjust(5))
+        outfile.write(str(self.shift).rjust(5))
         outfile.write('\n\n')
     
         # Print the stick data
         outfile.write('State'.rjust(7))
         outfile.write('Energy (eV)'.rjust(16))
         outfile.write('Intensity (au)\n'.rjust(21))
-        for state in range(len(excited_state)):
+        for state in range(len(self.excited_state)):
             outfile.write(str(state+1).rjust(7))
-            outfile.write(str(excited_state[state]).rjust(16))
-            outfile.write(str(intensity[state]).rjust(20))
+            outfile.write(str(self.excited_state[state]).rjust(16))
+            outfile.write(str(self.intensity[state]).rjust(20))
             outfile.write('\n')
         outfile.write('\n')
         
@@ -225,13 +223,13 @@ class Absorbance_Spectrum:
         outfile.write('Gaussian Fit\n'.rjust(15))
         outfile.write('Energy (eV)'.rjust(25))
         outfile.write('Intensity (au)\n'.rjust(41))
-        for point in range(len(energy)):
-            outfile.write(repr(energy[point]).rjust(25))
-            outfile.write(repr(absorbance[point]).rjust(40))
+        for point in range(len(self.energy)):
+            outfile.write(repr(self.energy[point]).rjust(25))
+            outfile.write(repr(self.absorbance[point]).rjust(40))
             outfile.write('\n')
         outfile.close()
     
-    def plot_spectrum(self, energy, absorbance):
+    def plot_spectrum(self):
         """Visualize a plot of the absorbance data.
         
         Plot the absorbance spectrum as A versus Evec with appropriate axis
@@ -244,7 +242,7 @@ class Absorbance_Spectrum:
             import matplotlib.pyplot as plt 
             plt.xlabel("Energy (eV)")
             plt.ylabel("Oscillator strength")
-            plt.plot(energy, absorbance, 'k')
+            plt.plot(self.energy, self.absorbance, 'k')
             plt.show()
         except ImportError:
             print '  [ERROR] matplotlib.pylot is required to plot the spectrum'
@@ -271,10 +269,20 @@ def delspaces(L):
 
 options = CommandLineInput()
 logfile = options.logfile
+parameters = options.parameters
+plot = options.plot
 
 if options.outfile == None:
     outfile_name = generate_outfile(logfile.name)
 else:
     outfile_name = options.outfile
+
+spectrum = AbsorbanceSpectrum(logfile, parameters)
+spectrum.get_excited_states()
+spectrum.generate_spectrum()
+spectrum.create_outfile(outfile_name)
+
+if plot:
+    spectrum.plot_spectrum()
 
 print '  Spectrum generation complete: output written to %s' % outfile_name
