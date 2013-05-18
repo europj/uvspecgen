@@ -1,6 +1,6 @@
-#!/Library/Frameworks/Python.framework/Versions/Current/bin/python
-"""
 #!/usr/bin/python
+"""
+#!/Library/Frameworks/Python.framework/Versions/Current/bin/python
 """
 
 """
@@ -8,7 +8,7 @@ UVSpecGen
 Generate UV-Vis spectra from TDHF/TDDFT Gaussian output files.
 """
 
-__version__ = '0.5'
+__version__ = '0.7'
 
 # PROGRAM DEFAULTS 
 # Gaussian fit parameters can be modified using the command-line options.
@@ -25,6 +25,7 @@ defaults = dict(
 
 import argparse as arg
 from math import e
+from datetime import datetime
 
 
 # CLASSES
@@ -42,6 +43,8 @@ class CommandLineInput():
         self.input = self.parse_command_line_input(self.header, default)
         self.logfile = self.input.logfile
         self.outfile = self.input.outfile
+        self.output = self.input.output
+        self.nometa = self.input.nometa
         self.plot = self.input.plot
         self.parameters = dict(
             grid = self.input.grid,
@@ -69,12 +72,26 @@ class CommandLineInput():
         # Required positional argument, the input (.log) file
         parser.add_argument(
             'logfile',
-            type = arg.FileType('r'))
+            help = 'Gaussian logfile')
         
-        # Optional positional argument, the output file name
+        # Optional positional argument, the output file name; option to modify
+        # output data
         parser.add_argument(
             'outfile',
-            nargs = '?')
+            nargs = '?',
+            default = '<logfile>.spec.txt',
+            help = 'specify output filename, .spec.txt will be appended')
+        parser.add_argument(
+            '-o',
+            '--output',
+            default = 'both',
+            choices = ['both', 'curve', 'sticks'],
+            help = 'specify results to print in output file')
+        parser.add_argument(
+            '--nometa',
+            default = 'False',
+            action = 'store_true',
+            help = 'do not print spectrum meta data to output file')
         
         # Optional arguments, to modify the parameters of the Gaussian fit
         parser.add_argument(
@@ -121,12 +138,18 @@ class CommandLineInput():
 
 class AbsorbanceSpectrum:
     def __init__(self, logfile, params):
-        self.logfile = logfile
+        self.logfile_name = logfile
         self.grid = params['grid']
         self.sigma = params['sigma']
         self.shift = params['shift']
         self.plot_range = params['range']
+        self.time = get_time() 
         
+        self.meta_data_tags = ['Logfile:', 'Sigma:', 'Grid:', 'Shift:',
+                               'Range:', 'Created:']
+        self.meta_data = [self.logfile_name, self.sigma, self.grid, self.shift,
+                          self.plot_range, self.time]
+
         self.energy = [] 
         self.intensity = []
         self.absorbance = []                                    
@@ -141,12 +164,13 @@ class AbsorbanceSpectrum:
         appropriate list.
     
         """
-        for line in self.logfile:                                
-            if line.startswith(' Excited State '):      
-                words = line.split(' ')
-                words = delspaces(words)
-                self.excited_state += [float(words[4])]
-                self.intensity += [float(words[8][2:])]
+        with open(self.logfile_name) as logfile:
+            for line in logfile:                                
+                if line.startswith(' Excited State '):      
+                    words = line.split(' ')
+                    words = delspaces(words)
+                    self.excited_state += [float(words[4])]
+                    self.intensity += [float(words[8][2:])]
     
     def generate_spectrum(self):
         """Fit the sticks with Gaussians to generate line shape.
@@ -192,41 +216,73 @@ class AbsorbanceSpectrum:
         """Write the output file.
     
         Write the UV-Vis stick spectrum and line shape data to the output file. 
-        Include the fit meta data at the top of the file.
     
         """
-        outfile = open(outfile_name, 'w')
-       
-        # Print the fit meta data to the top of the output file
-        outfile.write('Grid Spacing = '.rjust(17))
-        outfile.write(str(self.grid).rjust(5))
-        outfile.write('\n')
-        outfile.write('Sigma = '.rjust(17))
-        outfile.write(str(self.sigma).rjust(5))
-        outfile.write('\n')
-        outfile.write('Shift = '.rjust(17))
-        outfile.write(str(self.shift).rjust(5))
-        outfile.write('\n\n')
-    
-        # Print the stick data
-        outfile.write('State'.rjust(7))
-        outfile.write('Energy (eV)'.rjust(16))
-        outfile.write('Intensity (au)\n'.rjust(21))
-        for state in range(len(self.excited_state)):
-            outfile.write(str(state+1).rjust(7))
-            outfile.write(str(self.excited_state[state]).rjust(16))
-            outfile.write(str(self.intensity[state]).rjust(20))
-            outfile.write('\n')
-        outfile.write('\n')
+        # Setup print control flags; by default, everything is printed
+        printout = dict(curve=True, sticks=True, meta=True) 
+        if options.output == "curve":
+            printout['sticks'] = False
+        if options.output == "sticks":
+            printout['curve'] = False 
+        if options.nometa == True:
+            printout['meta'] = False 
         
-        # Print the fitted Gaussian curve to the outfile
-        outfile.write('Gaussian Fit\n'.rjust(15))
-        outfile.write('Energy (eV)'.rjust(25))
-        outfile.write('Intensity (au)\n'.rjust(41))
-        for point in range(len(self.energy)):
-            outfile.write(repr(self.energy[point]).rjust(25))
-            outfile.write(repr(self.absorbance[point]).rjust(40))
-            outfile.write('\n')
+        # Determine number of lines to print
+        if printout['curve']:
+            lines_to_print = len(self.energy)
+        elif printout['meta']:
+            lines_to_print = max(len(self.excited_state),
+                                 len(self.meta_data_tags))
+        else:
+            lines_to_print = len(self.excited_state)
+
+        # Create the output file
+        outfile = open(outfile_name, 'w')
+
+        for i in range(lines_to_print):
+            header_line = []
+            current_line = []
+            if printout['curve']: 
+                if i == 0:
+                    header = '%(energy)15s %(intensity)19s' % \
+                              {'energy': 'Energy (eV)', \
+                               'intensity': 'Intensity (au)'}
+                    header_line.append(header)
+                
+                line = '%(energy)15.3F %(intensity)19.5F' % \
+                        {'energy': self.energy[i], \
+                         'intensity': self.absorbance[i]}
+                current_line.append(line)
+
+            if printout['sticks']: 
+                if i == 0:
+                    header = '%(state)8s %(energy)15s %(intensity)19s' % \
+                              {'state': 'State', 'energy': 'Energy (eV)', \
+                               'intensity': 'Intensity (au)'}
+                    header_line.append(header)
+               
+                if i < len(self.excited_state):
+                    line = '%(state)8i %(energy)15.3F %(intensity)19.5F' % \
+                            {'state': i+1, 'energy': self.excited_state[i], \
+                             'intensity': self.intensity[i]}
+                elif i < len(self.meta_data_tags):
+                    line = '%44s' % ' '
+                else:
+                    line = ''
+                current_line.append(line)
+            
+            if printout['meta'] and i < len(self.meta_data_tags):
+                line = '%(tag)15s %(value)20s' % \
+                        {'tag': self.meta_data_tags[i], \
+                         'value': self.meta_data[i]}
+                current_line.append(line)
+
+            if i == 0:
+                header_line.append('\n')
+                outfile.write(' '.join(header_line))
+            current_line.append('\n')
+            outfile.write(' '.join(current_line))
+        
         outfile.close()
     
     def plot_spectrum(self):
@@ -250,10 +306,25 @@ class AbsorbanceSpectrum:
 
 # LOCAL FUNCTIONS
 
-def generate_outfile(logfile):
-    """Generate the output filename."""
-    outfile = logfile[:-3]+'spec'
-    return outfile
+def get_time():
+    """Return the date and time of program execution as MM-DD-YYYY @ HH:MM."""
+    dt = datetime.now()
+    mth = dt.month
+    day = dt.day
+    yr = dt.year
+    hr = dt.hour
+    mnt = dt.minute
+    time_stamp = '%(month)02i-%(day)02i-%(year)4i @ %(hour)02i:%(minute)02i' %\
+            {'month': mth, 'day': day, 'year': yr, 'hour': hr, 'minute': mnt}
+    return time_stamp 
+
+def generate_outfile_name():
+    """Generate the output filename with .spec.txt extension."""
+    global outfile_name
+    if options.outfile == "<logfile>.spec.txt":
+        outfile_name = logfile_name[:-3]+'spec.txt'
+    else:
+        outfile_name = options.outfile + ".spec.txt"
 
 def delspaces(L):
     """Remove all items in a list containing only empty strings."""
@@ -268,21 +339,17 @@ def delspaces(L):
 # MAIN PROGRAM
 
 options = CommandLineInput()
-logfile = options.logfile
+logfile_name = options.logfile
+generate_outfile_name()
 parameters = options.parameters
-plot = options.plot
+make_plot = options.plot
 
-if options.outfile == None:
-    outfile_name = generate_outfile(logfile.name)
-else:
-    outfile_name = options.outfile
-
-spectrum = AbsorbanceSpectrum(logfile, parameters)
+spectrum = AbsorbanceSpectrum(logfile_name, parameters)
 spectrum.get_excited_states()
 spectrum.generate_spectrum()
 spectrum.create_outfile(outfile_name)
 
-if plot:
+if make_plot:
     spectrum.plot_spectrum()
 
 print '  Spectrum generation complete: output written to %s' % outfile_name
