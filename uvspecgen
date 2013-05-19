@@ -1,16 +1,44 @@
 #!/usr/bin/python
-"""
-#!/Library/Frameworks/Python.framework/Versions/Current/bin/python
-"""
+
+"""UVSpecGen
+
+This program parses Gaussian TDHF/TDDFT log files for excited states and
+oscillator strengths.  It then fits this extracted 'stick' spectrum with a
+Gaussian line shape function to generate a UV-Vis spectrum.
+
+The program contains the AbsorptionSpectrum class with the following methods 
+for extracting the 'stick' spectrum and for generating the line shape:
+
+AbsorptionSpectrum(logfile, params)
+
+    - get_excited_states() -- The extractor method that acts on an instance of
+        the AbsorptionSpectrum class to parse the excited state energies and
+        oscillator strengths from a Gaussian TDHF/TDDFT log file.  The energies
+        and oscillator strengths are stored in lists as attributes of the
+        class.
+    
+    - generate_spectrum() -- The method for creating the line shape function by
+        forming the sum of Gaussian functions fit to each 'stick'.  The fitting
+        parameters can be modified by passing a dictionary of fit parameters to
+        the instance call of the class.  The energy scale and intensities are
+        stored in lists as attributes of the class.  This method should be run
+        only after get_excited_states() has been executed.
+    
+    - create_outfile(outfile_name) -- The method for generating the ouput file.
+        By default, the output file contains the line shape function, the
+        'stick' spectrum, and the fit metadata.  The output can be modified
+        using the command-line input options.
+
+    - plot_spectrum() -- This method uses the matplotlib to visualize the line
+        shape function.  It catches the ImportError in the event the matplotlib
+        plotting module is not available.
 
 """
-UVSpecGen
-Generate UV-Vis spectra from TDHF/TDDFT Gaussian output files.
-"""
-
 __version__ = '0.7'
 
-# PROGRAM DEFAULTS 
+# ================
+# PROGRAM DEFAULTS
+# ================
 # Gaussian fit parameters can be modified using the command-line options.
 # To permanently change these values (make them default), update the
 # variable definitions below.
@@ -35,7 +63,7 @@ class CommandLineInput():
 
     An instance of this class parses command-line input and provides program
     help documentation.  All needed user-input is handled with this class,
-    including input/output file names and fit parameters.
+    including input/output file names, fit parameters, and output formatting.
 
     """
     def __init__(self, version=__version__, default=defaults):
@@ -91,7 +119,7 @@ class CommandLineInput():
             '--nometa',
             default = 'False',
             action = 'store_true',
-            help = 'do not print spectrum meta data to output file')
+            help = 'do not print spectrum metadata to output file')
         
         # Optional arguments, to modify the parameters of the Gaussian fit
         parser.add_argument(
@@ -136,8 +164,26 @@ class CommandLineInput():
         return args
 
 
-class AbsorbanceSpectrum:
+class AbsorptionSpectrum:
+    """Gaussian UV-Vis spectrum object with 'stick' spectrum and line shape.
+
+    The object is instantiated with a logfile name and fit parameters for the
+    line shape function.  Methods for extracting the 'stick' spectrum from the
+    logfile and for generating the line shape function are provided.  An output
+    method prints the results (with optional user control) to a file with the
+    .spec.txt extension.
+
+    """
     def __init__(self, logfile, params):
+        """Initialize the AbsorptionSpectrum object.
+        
+        The object is initialized with a logfile name, parameters for the
+        Gaussian line shape function, and metadata to be printed in the output
+        file.  Lists are initialized to store the 'stick' and line shape data,
+        but are not populated until the appropriate methods are called on the
+        object.
+
+        """
         self.logfile_name = logfile
         self.grid = params['grid']
         self.sigma = params['sigma']
@@ -145,23 +191,23 @@ class AbsorbanceSpectrum:
         self.plot_range = params['range']
         self.time = get_time() 
         
-        self.meta_data_tags = ['Logfile:', 'Sigma:', 'Grid:', 'Shift:',
+        # Metadata to be printed in the ouput file
+        self.metadata_tags = ['Logfile:', 'Sigma:', 'Grid:', 'Shift:',
                                'Range:', 'Created:']
-        self.meta_data = [self.logfile_name, self.sigma, self.grid, self.shift,
+        self.metadata = [self.logfile_name, self.sigma, self.grid, self.shift,
                           self.plot_range, self.time]
 
-        self.energy = [] 
-        self.intensity = []
+        self.excited_state_energy = [] 
+        self.oscillator_strength = []
         self.absorbance = []                                    
-        self.excited_state = []                                 
+        self.energy = []                                 
 
     def get_excited_states(self):
-        """Read in the excited states and oscillator strengths.
+        """Read in the excited states and oscillator strengths from log file.
         
         Read each line of the logfile looking for the 'Excited State'
-        keyword at the beginning of the line.  Extracts the excited state
-        energy and oscillator strength and stores the values in the
-        appropriate list.
+        keyword at the beginning of the line.  Extract the excited state
+        energy and oscillator strength into the appropriate list.
     
         """
         with open(self.logfile_name) as logfile:
@@ -169,31 +215,30 @@ class AbsorbanceSpectrum:
                 if line.startswith(' Excited State '):      
                     words = line.split(' ')
                     words = delspaces(words)
-                    self.excited_state += [float(words[4])]
-                    self.intensity += [float(words[8][2:])]
+                    self.energy += [float(words[4])]
+                    self.oscillator_strength += [float(words[8][2:])]
     
     def generate_spectrum(self):
-        """Fit the sticks with Gaussians to generate line shape.
+        """Fit the sticks with Gaussians to generate the line shape function.
     
-        Given the lists excited_state and intensity, this function generates
-        a grid of energy data points separated by grid between the
-        range plot_range above and below the largest and smallest energy 
-        excited states.  The excited state peaks are then fit with Gaussian
-        functions, which are summed together to give the final absorbance.
-        The lists energy and absorbance are populated with the data from the
-        fit.
+        Generate a grid of energy data points separated by 'grid' within the
+        range 'plot_range' above and below the largest and smallest excited
+        state energies.  Fit each 'stick' with a Gaussian function of width
+        'sigma' shifted by 'shift'.  Sum each Gaussian function to give the
+        line shape function.  This method can only be executed after
+        get_excited_states() has ran.
         
         """
-        # Range of graph/output is between plot_range less than the smallest
-        # excited state energy and plot_range greater than the largest excited
-        # state energy 
-        max_energy = self.plot_range + max(self.excited_state) 
-        min_energy = min(self.excited_state) - self.plot_range
+        # Range of graph/output is between 'plot_range' less than the smallest
+        # excited state energy and 'plot_range' greater than the largest
+        # excited state energy 
+        max_energy = self.plot_range + max(self.energy) 
+        min_energy = min(self.energy) - self.plot_range
         point = min_energy
         
         # Generate grid of energy points for the absorbance spectrum
         while point <= max_energy:
-            self.energy.append(point)
+            self.excited_state_energy.append(point)
             point += self.grid
     
         # For every grid point in the energy list, compute the absorbance
@@ -202,15 +247,15 @@ class AbsorbanceSpectrum:
         #              SIG ]**2]
         # where the absorbance, Abs, is a sum of Gaussian functions fit to
         # each S excited state and is a function of the energy, X.  Int is
-        # the intensity, SFT is the shift, ES is the excited state, and SIG
-        # is the sigma broadening constant.
-        for point in self.energy:
-            absorb_fit = 0.0
-            for state in range(len(self.excited_state)):
-                absorb_fit += self.intensity[state]*e**(-0.5*((point +
-                                self.shift - self.excited_state[state])**2)/
+        # the oscillator strength, SFT is the shift, ES is the excited state,
+        # and SIG is the sigma broadening constant.
+        for point in self.excited_state_energy:
+            gau_fit = 0.0
+            for state in range(len(self.energy)):
+                gau_fit += self.oscillator_strength[state]*e**(-0.5*((point +
+                                self.shift - self.energy[state])**2)/
                                 (self.sigma**2))
-            self.absorbance.append(absorb_fit)
+            self.absorbance.append(gau_fit)
             
     def create_outfile(self, outfile_name):
         """Write the output file.
@@ -229,12 +274,12 @@ class AbsorbanceSpectrum:
         
         # Determine number of lines to print
         if printout['curve']:
-            lines_to_print = len(self.energy)
+            lines_to_print = len(self.excited_state_energy)
         elif printout['meta']:
-            lines_to_print = max(len(self.excited_state),
-                                 len(self.meta_data_tags))
+            lines_to_print = max(len(self.energy),
+                                 len(self.metadata_tags))
         else:
-            lines_to_print = len(self.excited_state)
+            lines_to_print = len(self.energy)
 
         # Create the output file
         outfile = open(outfile_name, 'w')
@@ -250,7 +295,7 @@ class AbsorbanceSpectrum:
                     header_line.append(header)
                 
                 line = '%(energy)15.3F %(intensity)19.5F' % \
-                        {'energy': self.energy[i], \
+                        {'energy': self.excited_state_energy[i], \
                          'intensity': self.absorbance[i]}
                 current_line.append(line)
 
@@ -261,20 +306,20 @@ class AbsorbanceSpectrum:
                                'intensity': 'Intensity (au)'}
                     header_line.append(header)
                
-                if i < len(self.excited_state):
+                if i < len(self.energy):
                     line = '%(state)8i %(energy)15.3F %(intensity)19.5F' % \
-                            {'state': i+1, 'energy': self.excited_state[i], \
-                             'intensity': self.intensity[i]}
-                elif i < len(self.meta_data_tags):
+                            {'state': i+1, 'energy': self.energy[i], \
+                             'intensity': self.oscillator_strength[i]}
+                elif i < len(self.metadata_tags):
                     line = '%44s' % ' '
                 else:
                     line = ''
                 current_line.append(line)
             
-            if printout['meta'] and i < len(self.meta_data_tags):
+            if printout['meta'] and i < len(self.metadata_tags):
                 line = '%(tag)15s %(value)20s' % \
-                        {'tag': self.meta_data_tags[i], \
-                         'value': self.meta_data[i]}
+                        {'tag': self.metadata_tags[i], \
+                         'value': self.metadata[i]}
                 current_line.append(line)
 
             if i == 0:
@@ -286,25 +331,25 @@ class AbsorbanceSpectrum:
         outfile.close()
     
     def plot_spectrum(self):
-        """Visualize a plot of the absorbance data.
+        """Visualize a plot of the line shape function.
         
-        Plot the absorbance spectrum as A versus Evec with appropriate axis
-        labels.  The matplotlib module is not distributed as part of the
-        Python Standard Library, so performa a check to determine if the
-        module is available.
+        Plot the line shape function as absorbance versus energy with
+        appropriate axis labels.  The matplotlib module is not distributed
+        as part of the Python Standard Library, so performa a check to
+        determine if the module is available.
     
         """
         try:
             import matplotlib.pyplot as plt 
             plt.xlabel("Energy (eV)")
             plt.ylabel("Oscillator strength")
-            plt.plot(self.energy, self.absorbance, 'k')
+            plt.plot(self.excited_state_energy, self.absorbance, 'k')
             plt.show()
         except ImportError:
-            print '  [ERROR] matplotlib.pylot is required to plot the spectrum'
+            print ' [ERROR] matplotlib.pyplot is required to plot the spectrum'
 
 
-# LOCAL FUNCTIONS
+# UTILITY FUNCTIONS
 
 def get_time():
     """Return the date and time of program execution as MM-DD-YYYY @ HH:MM."""
@@ -344,7 +389,7 @@ generate_outfile_name()
 parameters = options.parameters
 make_plot = options.plot
 
-spectrum = AbsorbanceSpectrum(logfile_name, parameters)
+spectrum = AbsorptionSpectrum(logfile_name, parameters)
 spectrum.get_excited_states()
 spectrum.generate_spectrum()
 spectrum.create_outfile(outfile_name)
@@ -352,4 +397,4 @@ spectrum.create_outfile(outfile_name)
 if make_plot:
     spectrum.plot_spectrum()
 
-print '  Spectrum generation complete: output written to %s' % outfile_name
+print ' Spectrum generation complete: output written to %s' % outfile_name
