@@ -59,6 +59,9 @@ making immediately available the following attributes of the spectrum:
     energy
         list of equally spaced energy grid points in eV for plotting the line
         shape function
+    wavelength
+        list of equally spaced wavelength grid points in nm for plotting the
+        line shape function
     absorbance
         list of absorbance values in a.u. for plotting the line shape function
 
@@ -83,6 +86,9 @@ generating plottable output files using the uvspecgen script.
 """
 from math import e
 from datetime import datetime
+
+# Conversion factor for eV to nm
+EV2NM = 1239.84 
 
 class AbsorptionSpectrum:
     """Gaussian UV-Vis spectrum object with 'stick' spectrum and line shape.
@@ -120,8 +126,10 @@ class AbsorptionSpectrum:
         # List attributes to store the extracted excited state and line shape
         # data
         self.excited_state_energy = [] 
+        self.excited_state_wavelength = []
         self.oscillator_strength = []
         self.absorbance = []                                    
+        self.wavelength = []
         self.energy = []                                 
 
         # Extract the excited states and generate the line shape when the class
@@ -134,7 +142,8 @@ class AbsorptionSpectrum:
         
         Read each line of the logfile looking for the 'Excited State'
         keyword at the beginning of the line.  Extract the excited state
-        energy and oscillator strength into the appropriate list.
+        energy and oscillator strength into the appropriate list.  Convert eV
+        to nm for the excited state wavelengths.
     
         """
         with open(self.logfile_name) as logfile:
@@ -144,6 +153,8 @@ class AbsorptionSpectrum:
                     words = delspaces(words)
                     self.excited_state_energy += [float(words[4])]
                     self.oscillator_strength += [float(words[8][2:])]
+        self.excited_state_wavelength = \
+                convert_units(self.excited_state_energy, EV2NM, True)
     
     def generate_spectrum(self):
         """Fit the sticks with Gaussians to generate the line shape function.
@@ -168,6 +179,9 @@ class AbsorptionSpectrum:
             self.energy.append(point)
             point += self.grid
     
+        # Generate grid of wavelength points for output of absorbance spectrum
+        self.wavelength = convert_units(self.energy, EV2NM, True)
+
         # For every grid point in the energy list, compute the absorbance
         # according to the following equation:
         #   Abs(X) = SUM_{S} Int_{S} * EXP[-0.5 * [(X + SFT - ES_{S}) /
@@ -216,30 +230,34 @@ class AbsorptionSpectrum:
             current_line = []
             if printout['curve']: 
                 if i == 0:
-                    header = '%(energy)15s %(intensity)19s' % \
+                    header = '%(energy)15s %(wavelength)17s %(intensity)19s' % \
                               {'energy': 'Energy (eV)',
+                               'wavelength': 'Wavelength (nm)',
                                'intensity': 'Intensity (au)'}
                     header_line.append(header)
                 
-                line = '%(energy)15.3F %(intensity)19.5F' % \
+                line = '%(energy)15.3F %(wavelength)17.3F %(intensity)19.5F' % \
                         {'energy': self.energy[i],
+                         'wavelength': self.wavelength[i],
                          'intensity': self.absorbance[i]}
                 current_line.append(line)
 
             if printout['sticks']: 
                 if i == 0:
-                    header = '%(state)8s %(energy)15s %(intensity)19s' % \
+                    header = '%(state)8s %(energy)15s %(wavelength)17s %(intensity)19s' % \
                               {'state': 'State', 'energy': 'Energy (eV)',
+                               'wavelength': 'Wavelength (nm)',
                                'intensity': 'Intensity (au)'}
                     header_line.append(header)
                
                 if i < len(self.excited_state_energy):
-                    line = '%(state)8i %(energy)15.3F %(intensity)19.5F' % \
+                    line = '%(state)8i %(energy)15.3F %(wavelength)17.3F %(intensity)19.5F' % \
                             {'state': i+1,
                              'energy': self.excited_state_energy[i],
+                             'wavelength': self.excited_state_wavelength[i],
                              'intensity': self.oscillator_strength[i]}
                 elif i < len(self.metadata_tags):
-                    line = '%44s' % ' '
+                    line = '%(blank)62s' % {'blank': ' '}
                 else:
                     line = ''
                 current_line.append(line)
@@ -297,3 +315,19 @@ def delspaces(L):
         return delspaces(L[1:])
     elif L[0]!='':
         return [L[0]] + delspaces(L[1:])
+
+def convert_units(data, cfactor, inverse=False):
+    """Convert the units for the data stored in a list.
+    
+    The inverse control is used if the conversion involves data that
+    is inversely proportional.
+
+    """
+    converted_data = []
+    for value in data:
+        if inverse == False:
+            converted_value = value*cfactor
+        else:
+            converted_value = cfactor/value
+        converted_data.append(converted_value)
+    return converted_data
