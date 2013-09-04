@@ -281,7 +281,7 @@ class AbsorptionSpectrum:
         
         Plot the line shape function as absorbance versus energy with
         appropriate axis labels.  The matplotlib module is not distributed
-        as part of the Python Standard Library, so performa a check to
+        as part of the Python Standard Library, so perform a check to
         determine if the module is available.
     
         """
