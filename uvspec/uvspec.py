@@ -294,6 +294,33 @@ class AbsorptionSpectrum:
         except ImportError:
             print ' [ERROR] matplotlib.pyplot is required to plot the spectrum'
 
+def generate_outfile_name(outfile, logfile):
+    """Generate the output filename.
+    
+    The output filename is formed using the log filename prefix and replacing
+    the .log extension with the .spec.txt extension.
+    
+    """
+    if outfile == "<logfile>.spec.txt":
+        outfile_name = logfile[:-3]+'spec.txt'
+    else:
+        outfile_name = outfile + ".spec.txt"
+    return outfile_name
+
+def combine_spectra(logfiles, params):
+    """Merge the stick spectra from multiple log files.
+
+    Given multiple Gaussian TDDFT log files, this routine will extract the
+    stick spectrum from each file, combine the excited states into a single
+    array removing any duplicate states, and fit the resulting spectrum with a
+    Gaussian line shape.
+
+    """
+    stick_spectra = []
+
+    for logfile in logfiles:
+        stick_spectra.append(AbsorptionSpectrum(logfile, params))
+    print stick_spectra
 
 def get_time():
     """Return the date and time of program execution as MM-DD-YYYY @ HH:MM."""

@@ -45,19 +45,11 @@ except ImportError:
     print " [ERROR] Python module uvspec is required"
     sys.exit(1)
 
-def generate_outfile_name(outfile, logfile):
-    """Generate the output filename with .spec.txt extension."""
-    if outfile == "<logfile>.spec.txt":
-        outfile_name = logfile[:-3]+'spec.txt'
-    else:
-        outfile_name = outfile + ".spec.txt"
-    return outfile_name
-
 def main():
     __version__ = vrsn.get_version()
     options = ui.CommandLineInput(__version__, defaults)
     outfile_name = generate_outfile_name(options.outfile, options.logfile)
-    
+   
     spectrum = uv.AbsorptionSpectrum(options.logfile, options.parameters)
     spectrum.create_outfile(outfile_name, options.output, options.nometa)
     
