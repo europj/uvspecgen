@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Generate UV-Vis spectra from Gaussian09 TDHF/TDDFT log files. 
 # Copyright (C) 2013  Gaussian Toolkit
 # 
@@ -16,41 +14,29 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""UVSpecGen
+"""UV-Vis spectrum generation from Gaussian09 TDHF/TDDFT log files.
 
-This program uses the UVSpec Python module for generating UV-Vis spectra
+This program uses the uvspec Python module for generating UV-Vis spectra
 from Gaussian09 TDHF/TDDFT log files.  Alternatively, the uvspec module can
 be imported into your own programs for use of the AbsorptionSpectrum class.
 
 """
+from uvspec.spectrum import AbsorptionSpectrum, generate_outfile_name, \
+        join_spectra
+from uvspec.ui import CommandLineInput 
 
-# ================
-# PROGRAM DEFAULTS
-# ================
-# Gaussian fit parameters can be modified using the command-line options.
-# To permanently change these values (make them default), update the
-# variable definitions below.
-defaults = dict(
-    grid  = 0.02,
-    range = 2.50,
-    sigma = 0.12,
-    shift = 0.00)
-
-import sys
-try:
-    from uvspec import ui as ui
-    from uvspec import uvspec as uv
-    from uvspec import version as vrsn 
-except ImportError:
-    print " [ERROR] Python module uvspec is required"
-    sys.exit(1)
 
 def main():
-    __version__ = vrsn.get_version()
-    options = ui.CommandLineInput(__version__, defaults)
-    outfile_name = generate_outfile_name(options.outfile, options.logfile)
-   
-    spectrum = uv.AbsorptionSpectrum(options.logfile, options.parameters)
+    options = CommandLineInput(defaults)
+        
+    logfile = options.logfile[0]
+    outfile_name = generate_outfile_name(options.outfile, logfile)
+ 
+    if options.join:
+        spectrum = join_spectra(options.logfile, options.parameters)
+    else:
+        spectrum = AbsorptionSpectrum(logfile, options.parameters)
+    
     spectrum.create_outfile(outfile_name, options.output, options.nometa)
     
     if options.plot:
@@ -59,5 +45,3 @@ def main():
     print ' Spectrum generation complete: output written to %s' % outfile_name
     return
 
-if __name__ == "__main__":
-    main()

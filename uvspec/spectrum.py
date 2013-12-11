@@ -84,6 +84,7 @@ AbsorptionSpectrum class, or may be used as a stand-alone program for
 generating plottable output files using the uvspecgen script.
 
 """
+import os
 from math import e
 from datetime import datetime
 
@@ -100,7 +101,7 @@ class AbsorptionSpectrum:
     .spec.txt extension.
 
     """
-    def __init__(self, logfile, params):
+    def __init__(self, logfile, params, joined=False):
         """Initialize the AbsorptionSpectrum object.
         
         The object is initialized with a logfile name, parameters for the
@@ -116,6 +117,7 @@ class AbsorptionSpectrum:
         self.shift = params['shift']
         self.plot_range = params['range']
         self.time = get_time() 
+        self.joined = False
         
         # Metadata to be printed in the ouput file
         self.metadata_tags = ['Logfile:', 'Sigma:', 'Grid:', 'Shift:',
@@ -140,19 +142,15 @@ class AbsorptionSpectrum:
     def get_excited_states(self):
         """Read in the excited states and oscillator strengths from log file.
         
-        Read each line of the logfile looking for the 'Excited State'
-        keyword at the beginning of the line.  Extract the excited state
-        energy and oscillator strength into the appropriate list.  Convert eV
-        to nm for the excited state wavelengths.
+        Extract the excited state energy and oscillator strength into the
+        appropriate list.  Convert eV to nm for the excited state wavelengths.
     
         """
-        with open(self.logfile_name) as logfile:
-            for line in logfile:                                
-                if line.startswith(' Excited State '):      
-                    words = line.split(' ')
-                    words = delspaces(words)
-                    self.excited_state_energy += [float(words[4])]
-                    self.oscillator_strength += [float(words[8][2:])]
+        excited_states = read_in_excited_states(self.logfile_name)
+        for state in excited_states:
+            state_data = get_state_data(state)
+            self.excited_state_energy.append(state_data['energy'])
+            self.oscillator_strength.append(state_data['oscillator'])
         self.excited_state_wavelength = \
                 convert_units(self.excited_state_energy, EV2NM, True)
     
@@ -307,20 +305,122 @@ def generate_outfile_name(outfile, logfile):
         outfile_name = outfile + ".spec.txt"
     return outfile_name
 
-def combine_spectra(logfiles, params):
-    """Merge the stick spectra from multiple log files.
+def read_in_excited_states(logfile_name):
+    """Read in the excited states and oscillator strengths from log file.
+    
+    Read each line of the logfile looking for the 'Excited State'
+    keyword at the beginning of the line.  Save the line to a list and return
+    the list of excited states.
 
-    Given multiple Gaussian TDDFT log files, this routine will extract the
-    stick spectrum from each file, combine the excited states into a single
-    array removing any duplicate states, and fit the resulting spectrum with a
+    """
+    excited_states = []
+    with open(logfile_name) as logfile:
+        for line in logfile:                                
+            if line.startswith(' Excited State '):      
+                excited_states.append(line)
+    return excited_states
+
+def get_state_data(state):
+    """Extract the excited state energy and oscillator strength.
+    
+    Given the "Excited State" line from a Gaussian TDHF/TDDFT logfile, extract
+    the excited state energy (in eV) and the oscillator strenght into separate
+    lists.
+    
+    """
+    state_data = {}
+    words = state.split(' ')
+    words = delspaces(words)
+    state_data['energy'] = float(words[4])
+    state_data['oscillator'] = float(words[8][2:])
+    return state_data
+
+def join_spectra(logfiles, params):
+    """Create spectrum by joining states from multiple log files.
+
+    Given multiple Gaussian TDDFT log files, this routine will combine the
+    excited states from each file and fit the resulting spectrum with a
     Gaussian line shape.
 
     """
-    stick_spectra = []
+    combined_states = combine_the_spectra(logfiles)
+    temp_logfile_path = write_the_temp_file("uvspecgen-join-spec.tmp",
+                                            combined_states)
+    combined_spectrum = AbsorptionSpectrum(temp_logfile_path, params)
+    os.remove(temp_logfile_path)
+    return combined_spectrum
 
+def combine_the_spectra(logfiles):
+    """Merge the stick spectra from multiple log files into single list.
+
+    Given multiple Gaussian TDDFT log files, this routine will extract the
+    stick spectrum from each file and combine the excited states into a single
+    list removing any duplicate states.
+
+    """
+    file_num = 0
+    combined_excited_states = []
     for logfile in logfiles:
-        stick_spectra.append(AbsorptionSpectrum(logfile, params))
-    print stick_spectra
+        excited_states = []
+        if file_num == 0:
+            combined_excited_states.extend(read_in_excited_states(logfile))
+        else:
+            excited_states = read_in_excited_states(logfile)
+            for state in excited_states:
+                if duplicate_state(state, combined_excited_states) is False:
+                    combined_excited_states.append(state)
+        file_num += 1
+    return combined_excited_states
+
+def duplicate_state(needle, haystack):
+    """Determine if a given excited state has already been found.
+    
+    Given a single excited state energy (needle), determine if it is already
+    included in a list of excited state energies (haystack).
+
+    """
+    state_energy = str(get_state_data(needle)['energy']) + ' eV'
+    for hay in haystack:
+        if state_energy in hay:
+            return True
+    return False
+
+def get_the_working_directory():
+    """Return the absolute path of the current working directory."""
+    working_directory = os.getcwd()
+    return working_directory
+
+def write_the_temp_file(filename, lines_to_write):
+    """Write lines to temporary file.
+
+    This function creates a temporary file named filename in the current
+    working directory and writes lines_to_write to the file.  The function
+    returns the absolute path to the file.
+
+    """
+    cwd = get_the_working_directory()
+    temp_file_path = "/".join([cwd, filename])
+    temp_file = open(temp_file_path, "w") 
+    for line in lines_to_write:
+        temp_file.write(line)
+    temp_file.close()
+    return temp_file_path
+
+def convert_units(data, cfactor, inverse=False):
+    """Convert the units for the data stored in a list.
+    
+    The inverse control is used if the conversion involves data that
+    is inversely proportional.
+
+    """
+    converted_data = []
+    for value in data:
+        if inverse == False:
+            converted_value = value*cfactor
+        else:
+            converted_value = cfactor/value
+        converted_data.append(converted_value)
+    return converted_data
 
 def get_time():
     """Return the date and time of program execution as MM-DD-YYYY @ HH:MM."""
@@ -342,19 +442,3 @@ def delspaces(L):
         return delspaces(L[1:])
     elif L[0]!='':
         return [L[0]] + delspaces(L[1:])
-
-def convert_units(data, cfactor, inverse=False):
-    """Convert the units for the data stored in a list.
-    
-    The inverse control is used if the conversion involves data that
-    is inversely proportional.
-
-    """
-    converted_data = []
-    for value in data:
-        if inverse == False:
-            converted_value = value*cfactor
-        else:
-            converted_value = cfactor/value
-        converted_data.append(converted_value)
-    return converted_data
