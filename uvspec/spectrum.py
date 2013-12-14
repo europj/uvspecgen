@@ -14,94 +14,110 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""UVSpecGen
+"""Gaussian09 TDHF/TDDFT UV-Vis absorption spectrum class.
 
-This module parses Gaussian09 TDHF/TDDFT log files for excited states and
-oscillator strengths.  It then fits this extracted 'stick' spectrum with a
-Gaussian line shape function to generate a UV-Vis spectrum.
-
-The module contains the AbsorptionSpectrum class with the following methods 
-for extracting the 'stick' spectrum and for generating the line shape:
-
-AbsorptionSpectrum(logfile, params)
-
-    - get_excited_states() -- The extractor method that acts on an instance of
-        the AbsorptionSpectrum class to parse the excited state energies and
-        oscillator strengths from a Gaussian TDHF/TDDFT log file.  The energies
-        and oscillator strengths are stored in lists as attributes of the
-        class.
-    
-    - generate_spectrum() -- The method for creating the line shape function by
-        forming the sum of Gaussian functions fit to each 'stick'.  The fitting
-        parameters can be modified by passing a dictionary of fit parameters to
-        the instance call of the class.  The energy scale and intensities are
-        stored in lists as attributes of the class.  This method should be run
-        only after get_excited_states() has been executed.
-    
-    - create_outfile(outfile_name) -- The method for generating the ouput file.
-        By default, the output file contains the line shape function, the
-        'stick' spectrum, and the fit metadata.  The output can be modified
-        using the command-line input options.
-
-    - plot_spectrum() -- This method uses the matplotlib to visualize the line
-        shape function.  It catches the ImportError in the event the matplotlib
-        plotting module is not available.
-
-The first two methods listed above are executed for each instance of the class
-making immediately available the following attributes of the spectrum:
-
-    excited_state_energy
-        list of excited state energies in eV extracted from a Gaussian09
-        log file
-    oscillator_strength
-        list of oscillator strengths in a.u. for each excitation extracted
-        from a Gaussian09 log file
-    energy
-        list of equally spaced energy grid points in eV for plotting the line
-        shape function
-    wavelength
-        list of equally spaced wavelength grid points in nm for plotting the
-        line shape function
-    absorbance
-        list of absorbance values in a.u. for plotting the line shape function
-
-A dictionary of parameters must be passed to the AbsorptionSpectrum class and
-must include the following entries:
-
-    grid
-        grid spacing for the energy axis of the line shape function
-    range
-        applied to the lowest and highest excited state energies to set the
-        start and end points of the grid generated for the line shape function
-    sigma
-        broadening parameter for the Gaussian line shape function; applies to
-        each Gaussian fit to each excited state
-    shift
-        shift the energy scale of the line shape function 
+This module contains the AbsorptionSpectrum class for parsing excited state
+energies and oscillator strengths from Gaussian09 TDHF/TDDFT log files.  It
+then fits the extracted 'stick' spectrum with a Gaussian line shape function
+to generate a UV-Vis spectrum.
 
 This module can be imported into your own Python programs for access to the
 AbsorptionSpectrum class, or may be used as a stand-alone program for
 generating plottable output files using the uvspecgen script.
 
 """
+import datetime
+import math
 import os
-from math import e
-from datetime import datetime
+import os.path
 
-# Conversion factor for eV to nm
+
+# Conversion factor for electron volts (eV) to nanometer (nm)
 EV2NM = 1239.84 
 
-class AbsorptionSpectrum:
+
+class AbsorptionSpectrum(object):
     """Gaussian UV-Vis spectrum object with 'stick' spectrum and line shape.
 
-    The object is instantiated with a logfile name and fit parameters for the
-    line shape function.  Methods for extracting the 'stick' spectrum from the
-    logfile and for generating the line shape function are provided.  An output
-    method prints the results (with optional user control) to a file with the
-    .spec.txt extension.
+    The object requires a logfile name and fit parameters for the line
+    shape function to be passed in.  Methods for extracting the 'stick'
+    spectrum from the logfile and for generating the line shape function
+    are provided.  An output method prints the results (with optional
+    user control) to a file with the extension '.spec.txt'.
 
+    A dictionary of parameters containing the following entries must be
+    passed in: 
+    
+        grid
+            grid spacing for the energy axis of the line shape function
+        range
+            applied to the lowest and highest excited state energies to set
+            the start and end points of the grid generated for the line shape
+            function
+        sigma
+            broadening parameter for the Gaussian line shape function;
+            applies to each Gaussian fit to each excited state
+        shift
+            shift the energy scale of the line shape function 
+
+    This class provides the following attributes that define the spectrum:
+    
+        excited_state_energy
+            list of excited state energies in eV extracted from a Gaussian09
+            log file
+        excited_state_wavelength
+            list of excited state wavelengths in nm extracted from a
+            Gaussian09 log file
+        oscillator_strength
+            list of oscillator strengths in a.u. for each excitation extracted
+            from a Gaussian09 log file
+        energy
+            list of equally spaced energy grid points in eV for plotting the
+            line shape function
+        wavelength
+            list of equally spaced wavelength grid points in nm for plotting
+            the line shape function
+        absorbance
+            list of absorbance values in a.u. for plotting the line shape
+            function
+
+    This class runs the following methods when initialized to extract the
+    spectrum from the logfile and fit the 'stick' spectrum to generate the
+    line shape function:
+
+        get_excited_states()
+            The extractor method that acts on an instance of the
+            AbsorptionSpectrum class to parse the excited state energies and
+            oscillator strengths from a Gaussian TDHF/TDDFT log file.  The
+            energies and oscillator strengths are stored in lists as
+            attributes of the class.
+    
+        generate_spectrum()
+            The method for creating the line shape function by forming the
+            sum of Gaussian functions fit to each 'stick'.  The fitting
+            parameters can be modified by passing a dictionary of fit
+            parameters to the instance call of the class.  The energy scale
+            and intensities are stored in lists as attributes of the class.
+            This method should be run only after get_excited_states() has
+            been executed.
+
+    This class provides the following methods for printing and plotting
+    the absorption spectrum:
+    
+        create_outfile()
+            The method for generating the ouput file.  By default, the output
+            file contains the line shape function, the 'stick' spectrum, and
+            the fit metadata.  The output can be modified using the
+            command-line input options.
+
+        plot_spectrum()
+            This method uses the matplotlib to visualize the line shape
+            function.  It catches the ImportError in the event the matplotlib
+            plotting module is not available.
+
+    
     """
-    def __init__(self, logfile, params, joined=False):
+    def __init__(self, logfile, params, outfile=None, joined=False):
         """Initialize the AbsorptionSpectrum object.
         
         The object is initialized with a logfile name, parameters for the
@@ -111,19 +127,33 @@ class AbsorptionSpectrum:
         object.
 
         """
-        self.logfile_name = logfile
+        self.logfile = logfile
+        # If outfile is given, use it, otherwise, generate it from the logfile
+        outfile_name = outfile if outfile else logfile
+        self.outfile = self._get_outfile_name(outfile_name)
+
         self.grid = params['grid']
         self.sigma = params['sigma']
         self.shift = params['shift']
         self.plot_range = params['range']
         self.time = get_time() 
+
         self.joined = False
         
         # Metadata to be printed in the ouput file
-        self.metadata_tags = ['Logfile:', 'Sigma:', 'Grid:', 'Shift:',
-                               'Range:', 'Created:']
-        self.metadata = [self.logfile_name, self.sigma, self.grid, self.shift,
-                          self.plot_range, self.time]
+        self.metadata_tags = ['Logfile:',
+                              'Sigma:',
+                              'Grid:',
+                              'Shift:',
+                              'Range:',
+                              'Created:']
+        
+        self.metadata = [self.logfile,
+                         self.sigma,
+                         self.grid,
+                         self.shift,
+                         self.plot_range,
+                         self.time]
         
         # List attributes to store the extracted excited state and line shape
         # data
@@ -134,8 +164,8 @@ class AbsorptionSpectrum:
         self.wavelength = []
         self.energy = []                                 
 
-        # Extract the excited states and generate the line shape when the class
-        # is instantiated
+        # Extract the excited states and generate the line shape when the
+        # class is instantiated
         self.get_excited_states()
         self.generate_spectrum()
 
@@ -146,7 +176,7 @@ class AbsorptionSpectrum:
         appropriate list.  Convert eV to nm for the excited state wavelengths.
     
         """
-        excited_states = read_in_excited_states(self.logfile_name)
+        excited_states = read_in_excited_states(self.logfile)
         for state in excited_states:
             state_data = get_state_data(state)
             self.excited_state_energy.append(state_data['energy'])
@@ -191,12 +221,13 @@ class AbsorptionSpectrum:
         for point in self.energy:
             gau_fit = 0.0
             for state in range(len(self.excited_state_energy)):
-                gau_fit += self.oscillator_strength[state]*e**(-0.5*((point +
-                            self.shift - self.excited_state_energy[state])**2)/
+                gau_fit += self.oscillator_strength[state] * \
+                            math.e**(-0.5 * ((point + self.shift - \
+                            self.excited_state_energy[state])**2)/
                             (self.sigma**2))
             self.absorbance.append(gau_fit)
             
-    def create_outfile(self, outfile_name, output, nometa):
+    def create_outfile(self, output=None, nometa=None):
         """Write the output file.
     
         Write the UV-Vis stick spectrum and line shape data to the output file. 
@@ -204,9 +235,9 @@ class AbsorptionSpectrum:
         """
         # Setup print control flags; by default, everything is printed
         printout = dict(curve=True, sticks=True, meta=True) 
-        if output == "curve":
+        if output == 'curve':
             printout['sticks'] = False
-        if output == "sticks":
+        if output == 'sticks':
             printout['curve'] = False 
         if nometa == True:
             printout['meta'] = False 
@@ -221,7 +252,7 @@ class AbsorptionSpectrum:
             lines_to_print = len(self.excited_state_energy)
 
         # Create the output file
-        outfile = open(outfile_name, 'w')
+        outfile = open(self.outfile, 'w')
 
         for i in range(lines_to_print):
             header_line = []
@@ -273,6 +304,8 @@ class AbsorptionSpectrum:
             outfile.write(' '.join(current_line))
         
         outfile.close()
+        print (' Spectrum generation complete: output written to %s'
+               % self.outfile)
     
     def plot_spectrum(self):
         """Visualize a plot of the line shape function.
@@ -284,26 +317,28 @@ class AbsorptionSpectrum:
     
         """
         try:
-            import matplotlib.pyplot as plt 
-            plt.xlabel("Energy (eV)")
-            plt.ylabel("Oscillator strength")
-            plt.plot(self.energy, self.absorbance, 'k')
-            plt.show()
+            import matplotlib.pyplot as plot 
+            plot.xlabel('Energy (eV)')
+            plot.ylabel('Oscillator strength')
+            plot.plot(self.energy, self.absorbance, 'k')
+            plot.show()
         except ImportError:
-            print ' [ERROR] matplotlib.pyplot is required to plot the spectrum'
+            print ' [ERROR] matplotlib is required to plot the spectrum'
 
-def generate_outfile_name(outfile, logfile):
-    """Generate the output filename.
-    
-    The output filename is formed using the log filename prefix and replacing
-    the .log extension with the .spec.txt extension.
-    
-    """
-    if outfile == "<logfile>.spec.txt":
-        outfile_name = logfile[:-3]+'spec.txt'
-    else:
-        outfile_name = outfile + ".spec.txt"
-    return outfile_name
+    def _get_outfile_name(self, outfile):
+        """Generate the output filename.
+        
+        The output filename is formed using the log filename prefix and
+        replacing the .log extension with the .spec.txt extension.
+        
+        """
+        ext = '.spec.txt'
+        if outfile.endswith('.log'):
+            name = outfile[:-4]
+        else:
+            name = outfile
+        return str(name + ext) 
+
 
 def read_in_excited_states(logfile_name):
     """Read in the excited states and oscillator strengths from log file.
@@ -320,20 +355,20 @@ def read_in_excited_states(logfile_name):
                 excited_states.append(line)
     return excited_states
 
+
 def get_state_data(state):
     """Extract the excited state energy and oscillator strength.
     
-    Given the "Excited State" line from a Gaussian TDHF/TDDFT logfile, extract
+    Given the 'Excited State' line from a Gaussian TDHF/TDDFT logfile, extract
     the excited state energy (in eV) and the oscillator strenght into separate
     lists.
     
     """
-    state_data = {}
-    words = state.split(' ')
-    words = delspaces(words)
-    state_data['energy'] = float(words[4])
-    state_data['oscillator'] = float(words[8][2:])
+    words = filter(None, state.split(' '))
+    state_data = {'energy': float(words[4]),
+                  'oscillator': float(words[8][2:])}
     return state_data
+
 
 def join_spectra(logfiles, params):
     """Create spectrum by joining states from multiple log files.
@@ -344,11 +379,12 @@ def join_spectra(logfiles, params):
 
     """
     combined_states = combine_the_spectra(logfiles)
-    temp_logfile_path = write_the_temp_file("uvspecgen-join-spec.tmp",
+    temp_logfile_path = write_the_temp_file('uvspecgen-join-spec.tmp',
                                             combined_states)
     combined_spectrum = AbsorptionSpectrum(temp_logfile_path, params)
     os.remove(temp_logfile_path)
     return combined_spectrum
+
 
 def combine_the_spectra(logfiles):
     """Merge the stick spectra from multiple log files into single list.
@@ -367,10 +403,11 @@ def combine_the_spectra(logfiles):
         else:
             excited_states = read_in_excited_states(logfile)
             for state in excited_states:
-                if duplicate_state(state, combined_excited_states) is False:
+                if not duplicate_state(state, combined_excited_states):
                     combined_excited_states.append(state)
         file_num += 1
     return combined_excited_states
+
 
 def duplicate_state(needle, haystack):
     """Determine if a given excited state has already been found.
@@ -385,10 +422,6 @@ def duplicate_state(needle, haystack):
             return True
     return False
 
-def get_the_working_directory():
-    """Return the absolute path of the current working directory."""
-    working_directory = os.getcwd()
-    return working_directory
 
 def write_the_temp_file(filename, lines_to_write):
     """Write lines to temporary file.
@@ -398,13 +431,13 @@ def write_the_temp_file(filename, lines_to_write):
     returns the absolute path to the file.
 
     """
-    cwd = get_the_working_directory()
-    temp_file_path = "/".join([cwd, filename])
-    temp_file = open(temp_file_path, "w") 
+    temp_file_path = os.path.join(os.getcwd(), filename)
+    temp_file = open(temp_file_path, 'w') 
     for line in lines_to_write:
         temp_file.write(line)
     temp_file.close()
     return temp_file_path
+
 
 def convert_units(data, cfactor, inverse=False):
     """Convert the units for the data stored in a list.
@@ -415,30 +448,15 @@ def convert_units(data, cfactor, inverse=False):
     """
     converted_data = []
     for value in data:
-        if inverse == False:
-            converted_value = value*cfactor
+        if not inverse:
+            converted_value = value * cfactor
         else:
-            converted_value = cfactor/value
+            converted_value = cfactor / value
         converted_data.append(converted_value)
     return converted_data
 
+
 def get_time():
     """Return the date and time of program execution as MM-DD-YYYY @ HH:MM."""
-    dt = datetime.now()
-    mth = dt.month
-    day = dt.day
-    yr = dt.year
-    hr = dt.hour
-    mnt = dt.minute
-    time_stamp = '%(month)02i-%(day)02i-%(year)4i @ %(hour)02i:%(minute)02i' %\
-            {'month': mth, 'day': day, 'year': yr, 'hour': hr, 'minute': mnt}
-    return time_stamp 
-
-def delspaces(L):
-    """Remove all items in a list containing only empty strings."""
-    if len(L)==0:
-        return L
-    elif L[0]=='':
-        return delspaces(L[1:])
-    elif L[0]!='':
-        return [L[0]] + delspaces(L[1:])
+    now = datetime.datetime.now()
+    return now.strftime('%m-%d-%Y @ %H:%M') 

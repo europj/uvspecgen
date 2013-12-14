@@ -21,27 +21,19 @@ from Gaussian09 TDHF/TDDFT log files.  Alternatively, the uvspec module can
 be imported into your own programs for use of the AbsorptionSpectrum class.
 
 """
-from uvspec.spectrum import AbsorptionSpectrum, generate_outfile_name, \
-        join_spectra
-from uvspec.ui import CommandLineInput 
+from uvspec.config import settings
+from uvspec.spectrum import AbsorptionSpectrum, join_spectra
 
 
 def main():
-    options = CommandLineInput(defaults)
-        
-    logfile = options.logfile[0]
-    outfile_name = generate_outfile_name(options.outfile, logfile)
- 
-    if options.join:
-        spectrum = join_spectra(options.logfile, options.parameters)
+    if settings.join:
+        spectrum = join_spectra(settings.logfile, settings.parameters)
     else:
-        spectrum = AbsorptionSpectrum(logfile, options.parameters)
+        spectrum = AbsorptionSpectrum(settings.logfile[0],
+                                      settings.parameters,
+                                      settings.outfile)
     
-    spectrum.create_outfile(outfile_name, options.output, options.nometa)
+    spectrum.create_outfile(settings.output, settings.nometa)
     
-    if options.plot:
+    if settings.plot:
         spectrum.plot_spectrum()
-    
-    print ' Spectrum generation complete: output written to %s' % outfile_name
-    return
-

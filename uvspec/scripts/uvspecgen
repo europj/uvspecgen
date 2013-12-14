@@ -30,19 +30,15 @@ be imported into your own programs for use of the AbsorptionSpectrum class.
 # Gaussian fit parameters can be modified using the command-line options.
 # To permanently change these values (make them default), update the
 # variable definitions below.
-defaults = dict(
-    grid  = 0.02,
-    range = 2.50,
-    sigma = 0.12,
-    shift = 0.00)
+#defaults = dict(
+#    grid  = 0.02,
+#    range = 2.50,
+#    sigma = 0.12,
+#    shift = 0.00)
 # ======================================
 # Do not modify anything below this line
 # ======================================
 
-import sys
-
 from uvspec.generate import main
 
-
-if __name__ == '__main__':
-    main()
+main()

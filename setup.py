@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from distutils.core import setup
-from uvspec.version import get_version 
+from uvspec import get_version 
 
 version = get_version()
 
@@ -10,7 +10,7 @@ with open('README.md') as f:
 
 setup(name='uvspecgen',
       version=version,
-      packages=['uvspec', 'uvspec.lib'],
+      packages=['uvspec', 'uvspec.config', 'uvspec.lib'],
       scripts=['uvspec/scripts/uvspecgen'],
       package_data={'uvspec': ['tests/*']},
       description='Gaussian UV-Vis spectrum generation',

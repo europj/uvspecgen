@@ -14,23 +14,28 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""UVSpecGen
+"""Command line user interface for the UVSpecGen script.
 
-This is the main user interface module for UVSpecGen.  An instance of the
-ArgumentParser class is created for providing program usage and parsing
-command-line input.
+An instance of the ArgumentParser class from the argparse module is created
+for providing program usage information and for parsing command-line input.
 
 """
+from uvspec import get_version
 
-import sys
-if sys.version_info > (2, 7):
+# The argparse module is not included with Python versions less than 2.7.
+# A copy of the module is included with the uvspec package.
+try:
     import argparse as arg
-else:
-    try:
-        from lib import argparse as arg
-    except ImportError:
-        print " [ERROR] The Python module ArgParse is required"
-        sys.exit(1)
+except ImportError:
+    from uvspec.lib import argparse as arg
+
+
+defaults = dict(
+    grid  = 0.02,
+    range = 2.50,
+    sigma = 0.12,
+    shift = 0.00)
+
 
 class CommandLineInput():
     """Process command-line input and generate help documentation.
@@ -40,25 +45,27 @@ class CommandLineInput():
     including input/output file names, fit parameters, and output formatting.
 
     """
-    def __init__(self, version, default):
-        self.header = '%(prog)s' + ' ' + version
-        self.input = self.parse_command_line_input(self.header, default)
-        self.logfile = self.input.logfile
-        self.outfile = self.input.outfile
-        self.plot = self.input.plot
-        self.output = self.input.output
-        self.nometa = self.input.nometa
-        self.parameters = dict(
-            grid = self.input.grid,
-            range = self.input.range,
-            sigma = self.input.sigma,
-            shift = self.input.shift)
+    def __init__(self, defaults=defaults):
+        self.version = get_version()
+        self.header = '%(prog)s' + ' ' + self.version
 
+        self.clinput = self._parse_command_line_input(defaults)
 
-    def parse_command_line_input(self, header, default):
+        self.logfile = self.clinput.logfile
+        self.outfile = self.clinput.outfile
+        self.join = self.clinput.join
+        self.plot = self.clinput.plot
+        self.output = self.clinput.output
+        self.nometa = self.clinput.nometa
+        self.parameters = {'grid': self.clinput.grid,
+                           'range': self.clinput.range,
+                           'sigma': self.clinput.sigma,
+                           'shift': self.clinput.shift}
+
+    def _parse_command_line_input(self, defaults):
         """Create an ArgumentParser object and define program options.
 
-        The default dictionary contains the default values for several
+        The defaults dictionary contains the default values for several
         parameters required to perform the Gaussian fit.  The dictionary
         is defined at the top of this file so that users may easily set
         the default values themself.  Additionally, the dictionary allows
@@ -74,15 +81,17 @@ class CommandLineInput():
         # Required positional argument, the input (.log) file
         parser.add_argument(
             'logfile',
+            nargs = '+',
             help = 'Gaussian logfile')
         
-        # Optional positional argument, the output file name; option to modify
-        # output data
+        # Optional positional argument, the output file name; option to
+        # modify output data
         parser.add_argument(
             'outfile',
             nargs = '?',
-            default = '<logfile>.spec.txt',
-            help = 'specify output filename, .spec.txt will be appended')
+            default = None,
+            help = ('output filename, .spec.txt will be appended, '
+                    '<logfile>.spec.txt is used as default'))
         parser.add_argument(
             '-o',
             '--output',
@@ -99,28 +108,35 @@ class CommandLineInput():
         parser.add_argument(
             '-g',
             '--grid',
-            default = default['grid'],
+            default = defaults['grid'],
             type = float,
             help = 'set grid spacing value for the Gaussian curve')
         parser.add_argument(
             '-r',
             '--range',
-            default = default['range'],
+            default = defaults['range'],
             type = float,
             help = 'set the spacing below and above the smallest and largest\
                     excited state energy for plotting')
         parser.add_argument(
             '-s',
             '--sigma',
-            default = default['sigma'],
+            default = defaults['sigma'],
             type = float,
             help = 'set value for Gaussian broadening constant sigma')
         parser.add_argument(
             '--shift',
-            default = default['shift'],
+            default = defaults['shift'],
             type = float,
             help = 'set shift for the starting point of the Gaussian curve')
 
+        # Option to join multiple log files into one spectrum
+        parser.add_argument(
+            '-j',
+            '--join',
+            action = 'store_true',
+            help = 'join multiple logfile spectra into one spectrum')
+        
         # Optional flag to plot the spectrum using matplotlib, if available
         parser.add_argument(
             '-p',
@@ -133,6 +149,5 @@ class CommandLineInput():
         parser.add_argument(
             '--version',
             action = 'version',
-            version = header)
-        args = parser.parse_args()
-        return args
+            version = self.header)
+        return parser.parse_args()
