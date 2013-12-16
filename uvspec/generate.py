@@ -22,18 +22,19 @@ be imported into your own programs for use of the AbsorptionSpectrum class.
 
 """
 from uvspec.config import settings
-from uvspec.spectrum import AbsorptionSpectrum, join_spectra
+from uvspec.spectrum import AbsorptionSpectrum
 
 
 def main():
+    spectrum = AbsorptionSpectrum(settings.logfile[0],
+                                  settings.parameters,
+                                  settings.outfile)
     if settings.join:
-        spectrum = join_spectra(settings.logfile, settings.parameters)
+        spectrum.join(settings.logfile[1:])
     else:
-        spectrum = AbsorptionSpectrum(settings.logfile[0],
-                                      settings.parameters,
-                                      settings.outfile)
+        spectrum.generate()
     
-    spectrum.create_outfile(settings.output, settings.nometa)
+    spectrum.write(settings.output, settings.nometa)
     
     if settings.plot:
-        spectrum.plot_spectrum()
+        spectrum.plot()
