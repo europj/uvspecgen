@@ -24,21 +24,20 @@ installation as well.
 
 """
 from setuptools import setup
-from uvspec import get_version 
+
+from uvspec.version import get_version 
 
 
 version = get_version()
-
 with open('README.md') as f:
     long_description = f.read()
-
 
 setup(name='uvspec',
       version=version,
       packages=['uvspec', 'uvspec.config', 'uvspec.lib'],
       scripts=['uvspec/scripts/uvspecgen'],
-      package_data={'uvspec': ['tests/*']},
-      install_requires=['cclib>=1.0'],
+      package_data={'uvspec': ['tests/*', 'config/uvspecgen.ini']},
+      install_requires=['argparse', 'cclib>=1.0', 'configparser', 'matplotlib'],
       description='Gaussian UV-Vis spectrum generation',
       maintainer='Li Research Group',
       maintainer_email='gaussiantoolkit@gmail.com',
