@@ -1,2 +1,0 @@
-include config/setup.cfg
-recursive-include uvspec/tests *
