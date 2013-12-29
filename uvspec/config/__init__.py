@@ -1,4 +1,4 @@
-from uvspec.config.settings import CommandLineInput
+from uvspec.config.settings import Settings 
 
 
-settings = CommandLineInput()
+settings = Settings()

@@ -34,9 +34,9 @@ with open('README.md') as f:
 
 setup(name='uvspec',
       version=version,
-      packages=['uvspec', 'uvspec.config', 'uvspec.lib'],
+      packages=['uvspec', 'uvspec.config'],
       scripts=['uvspec/scripts/uvspecgen'],
-      package_data={'uvspec': ['tests/*', 'config/uvspecgen.ini']},
+      package_data={'uvspec': ['tests/*']},
       install_requires=['argparse', 'cclib>=1.0', 'configparser', 'matplotlib'],
       description='Gaussian UV-Vis spectrum generation',
       maintainer='Li Research Group',

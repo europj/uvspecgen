@@ -20,24 +20,55 @@ An instance of the ArgumentParser class from the argparse module is created
 for providing program usage information and for parsing command-line input.
 
 """
-from uvspec import get_version
+import argparse
+import configparser
+import os.path
 
-# The argparse module is not included with Python versions less than 2.7.
-# A copy of the module is included with the uvspec package.
-try:
-    import argparse as arg
-except ImportError:
-    from uvspec.lib import argparse as arg
+from uvspec.version import get_version
 
 
-defaults = dict(
-    grid  = 0.02,
-    range = 2.50,
-    sigma = 0.12,
-    shift = 0.00)
+class ConfigFile():
+    """Process configuration file."""
+    def __init__(self):
+        self.path = os.path.expanduser('~/.uvspecgen')
+        self.filename = os.path.join(self.path, 'uvspecgen.conf')
+        self.config = configparser.ConfigParser()
+        self.default = {'grid': '0.02',
+                        'range': '2.50',
+                        'sigma': '0.12',
+                        'shift': '0.00'}
+        if not os.path.exists(self.path):
+            self.create()
+
+    def create(self):
+        try:
+            os.mkdir(self.path)
+        except OSError:
+            pass
+        self.config['FitParameters'] = self.default
+        self._write_config()
+
+    def read(self):
+        self.config.read(self.filename) 
+        params = self.config['FitParameters']
+        # Convert the parameter values from strings to floats
+        params = dict([k, float(v)] for k, v in params.iteritems())
+        return params 
+
+    def reset(self):
+        self.create()
+
+    def update(self, parameter, value):
+        self.config.read(self.filename)
+        self.config['FitParameters'][parameter] = str(value)
+        self._write_config()
+
+    def _write_config(self):
+        with open(self.filename, 'w') as configfile:
+            self.config.write(configfile)
 
 
-class CommandLineInput():
+class Settings():
     """Process command-line input and generate help documentation.
 
     An instance of this class parses command-line input and provides program
@@ -45,10 +76,11 @@ class CommandLineInput():
     including input/output file names, fit parameters, and output formatting.
 
     """
-    def __init__(self, defaults=defaults):
+    def __init__(self):
         self.version = get_version()
         self.header = '%(prog)s' + ' ' + self.version
 
+        defaults = ConfigFile().read()
         self.clinput = self._parse_command_line_input(defaults)
 
         self.logfile = self.clinput.logfile
@@ -61,6 +93,8 @@ class CommandLineInput():
                            'range': self.clinput.range,
                            'sigma': self.clinput.sigma,
                            'shift': self.clinput.shift}
+        self.save = self.clinput.save
+        self.reset = self.clinput.reset
 
     def _parse_command_line_input(self, defaults):
         """Create an ArgumentParser object and define program options.
@@ -73,62 +107,24 @@ class CommandLineInput():
         the herein described function.
 
         """
-        parser = arg.ArgumentParser(
-            formatter_class = arg.ArgumentDefaultsHelpFormatter,
+        parser = argparse.ArgumentParser(
+            formatter_class = argparse.ArgumentDefaultsHelpFormatter,
             description = 'Generate UV-Vis spectrum from TDHF/TDDFT data',
             epilog = 'Report bugs to <gaussiantoolkit@gmail.com>')
         
         # Required positional argument, the input (.log) file
         parser.add_argument(
             'logfile',
-            nargs = '+',
-            help = 'Gaussian logfile')
+            nargs = '*',
+            help = 'input TDHF/TDDFT logfile')
         
-        # Optional positional argument, the output file name; option to
-        # modify output data
+        # Option to specify the output file name
         parser.add_argument(
-            'outfile',
-            nargs = '?',
+            '-O',
+            '--outfile',
             default = None,
             help = ('output filename, .spec.txt will be appended, '
                     '<logfile>.spec.txt is used as default'))
-        parser.add_argument(
-            '-o',
-            '--output',
-            default = 'both',
-            choices = ['both', 'curve', 'sticks'],
-            help = 'specify results to print in output file')
-        parser.add_argument(
-            '--nometa',
-            default = 'False',
-            action = 'store_true',
-            help = 'do not print spectrum metadata to output file')
-        
-        # Optional arguments, to modify the parameters of the Gaussian fit
-        parser.add_argument(
-            '-g',
-            '--grid',
-            default = defaults['grid'],
-            type = float,
-            help = 'set grid spacing value for the Gaussian curve')
-        parser.add_argument(
-            '-r',
-            '--range',
-            default = defaults['range'],
-            type = float,
-            help = 'set the spacing below and above the smallest and largest\
-                    excited state energy for plotting')
-        parser.add_argument(
-            '-s',
-            '--sigma',
-            default = defaults['sigma'],
-            type = float,
-            help = 'set value for Gaussian broadening constant sigma')
-        parser.add_argument(
-            '--shift',
-            default = defaults['shift'],
-            type = float,
-            help = 'set shift for the starting point of the Gaussian curve')
 
         # Option to join multiple log files into one spectrum
         parser.add_argument(
@@ -145,6 +141,57 @@ class CommandLineInput():
             help = 'display a plot of the absorbance spectrum if matplotlib\
                     is available')
         
+        # Options to modify the output data
+        parser.add_argument(
+            '--nometa',
+            #default = 'False',
+            action = 'store_true',
+            help = 'do not print spectrum metadata to output file')
+        parser.add_argument(
+            '-o',
+            '--output',
+            default = 'both',
+            choices = ['both', 'curve', 'sticks'],
+            help = 'specify results to print in output file')
+        
+        # Optional arguments, to modify the parameters of the Gaussian fit
+        parser.add_argument(
+            '-g',
+            '--grid',
+            default = defaults['grid'],
+            type = float,
+            help = 'set grid spacing value for the Gaussian curve')
+        parser.add_argument(
+            '-r',
+            '--range',
+            default = defaults['range'],
+            type = float,
+            help = ('set the spacing below and above the smallest and '
+                    'largest excited state energy for plotting'))
+        parser.add_argument(
+            '-s',
+            '--sigma',
+            default = defaults['sigma'],
+            type = float,
+            help = 'set value for Gaussian broadening constant sigma')
+        parser.add_argument(
+            '-S',
+            '--shift',
+            default = defaults['shift'],
+            type = float,
+            help = 'set shift for the starting point of the Gaussian curve')
+       
+        # Flags for configuring program-wide default fit parameters
+        config = parser.add_mutually_exclusive_group()
+        config.add_argument(
+            '--save',
+            action = 'store_true',
+            help = 'save the specified fit parameters as the default values')
+        config.add_argument(
+            '--reset',
+            action = 'store_true',
+            help = 'reset the fit parameters to the original default values')
+
         # Print program version
         parser.add_argument(
             '--version',

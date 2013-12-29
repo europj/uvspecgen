@@ -23,22 +23,7 @@ from Gaussian09 TDHF/TDDFT log files.  Alternatively, the uvspec module can
 be imported into your own programs for use of the AbsorptionSpectrum class.
 
 """
-
-# ======================================
-# PROGRAM DEFAULTS
-# ======================================
-# Gaussian fit parameters can be modified using the command-line options.
-# To permanently change these values (make them default), update the
-# variable definitions below.
-#defaults = dict(
-#    grid  = 0.02,
-#    range = 2.50,
-#    sigma = 0.12,
-#    shift = 0.00)
-# ======================================
-# Do not modify anything below this line
-# ======================================
-
 from uvspec.generate import main
+
 
 main()
