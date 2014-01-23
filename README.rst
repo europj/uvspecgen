@@ -18,7 +18,7 @@ fit to each peak.
 
 This package includes the `uvspecgen` script for quickly processing electronic
 structure TDHF/TDDFT output files to produce a file containing the discrete
-spectrum and line shape function for quick plotting.  This script uses the
+spectrum and line shape function for plotting.  This script uses the included
 `uvspec` module, which can be imported into your own Python scripts for use of
 the `AbsorptionSpectrum` class, which parses a TDHF/TDDFT output file and
 stores the excited state energies, oscillator strengths, and line shape
@@ -27,10 +27,10 @@ function as attributes of the class.
 
 Supported Programs
 ------------------
-This program uses the `cclib`[1] Python library for parsing and interpreting
-the results of computational chemistry packages.  It currently supports parsing
-the results of TDHF/TDDFT calculations for the following electronic structure
-programs:
+This program uses the `cclib` Python library (ref. 1) for parsing and
+interpreting the results of computational chemistry packages.  It currently
+supports parsing the results of TDHF/TDDFT calculations for the following
+electronic structure programs:
  * ADF
  * GAMESS
  * Gaussian03
@@ -47,27 +47,31 @@ described below.
 
 #### Install as Root ####
 If you have root permissions on the target system, run the following commands
-at the command prompt:
+at the command prompt::
 
-tar xzvf uvspecgen-$VERSION.tar.gz
-cd uvspecgen-$VERSION
-python setup.py build
-sudo python setup.py install
+  tar xzvf uvspec-$VERSION.tar.gz
+  cd uvspec-$VERSION
+  sudo python setup.py install
 
-#### Install a Local Copy (UNIX only) ####
-For users on UNIX systems that do not have root privileges, a local
-installation can be performed.  By default, the program and its modules will
-be installed in your home directory at ~/bin/uvspecgen/.  This behavior can
-be changed by editing the setup.cfg file located in the config directory.
-The installation should then be performed as follows:
+#### Install a Local Copy ####
+For users that do not have root privileges, a local installation can be
+performed.  The installation location is system-specific, but can quickly
+determined by running::
 
-tar xvzf uvspecgen-$VERSION.tar.gz
-cd uvspecgen-$VERSION
-cp config/setup.cfg .
-python setup.py install
+  ./setup.py install --help
 
-The source files uvspecgen-$VERSION/ and uvspecgen-$VERSION.tar.gz can be
-deleted after installation.
+and look for the text accompanying the `--user` option.  More information on
+local installations can be found at
+http://docs.python.org/2/install/#alternate-installation-the-user-scheme.
+
+The installation should then be performed as follows::
+
+  tar xvzf uvspec-$VERSION.tar.gz
+  cd uvspec-$VERSION
+  python setup.py install --user
+
+The source files uvspec-$VERSION/ and uvspec-$VERSION.tar.gz can be deleted
+after installation.
 
 
 References
