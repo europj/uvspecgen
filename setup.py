@@ -27,7 +27,7 @@ will perform these installations as well.
 from ez_setup import use_setuptools
 use_setuptools()
 
-from setuptools import setup
+from setuptools import setup, find_packages
 
 from uvspec.version import get_version 
 
@@ -37,15 +37,22 @@ version = get_version()
 with open('README.rst') as f:
     long_description = f.read()
 
-setup(name='uvspec',
-      version=version,
-      packages=['uvspec', 'uvspec.config'],
-      scripts=['uvspec/scripts/uvspecgen'],
-      install_requires=['argparse', 'cclib>=1.0', 'configparser'],
-      description='Gaussian UV-Vis spectrum generation',
-      maintainer='Li Research Group',
-      maintainer_email='liresearchgroupuw@gmail.com',
-      url='http://github.com/gaussiantoolkit/uvspecgen/',
-      license='http://www.gnu.org/licenses/gpl.html',
-      long_description=long_description,
-     )
+setup(
+    name='uvspec',
+    version = version,
+    packages = find_packages(),
+
+    # automatic generation of the ``uvspecgen`` script
+    entry_points = {'console_scripts': ['uvspecgen = uvspec.generate:main']},
+
+    # package dependencies
+    install_requires = ['argparse', 'cclib>=1.0', 'configparser'],
+
+    # package metadata
+    description = 'Gaussian UV-Vis spectrum generation',
+    maintainer = 'Li Research Group',
+    maintainer_email = 'liresearchgroupuw@gmail.com',
+    url = 'http://github.com/gaussiantoolkit/uvspecgen/',
+    license = 'http://www.gnu.org/licenses/gpl.html',
+    long_description = long_description,
+)
