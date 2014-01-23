@@ -16,31 +16,35 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Installation script for the uvspec package and uvspecgen script.
+"""Installation script for the ``uvspec`` package and ``uvspecgen`` script.
 
-This installer also determines if the user has the cclib computational
-chemistry log file parsing library installed.  If not, it will perform that
-installation as well.
+This installer also looks for the necessary dependencies including the
+``cclib`` computational chemistry log file parsing library and the 
+``argparse`` and ``configparse`` modules.  If these modules are not found, it
+will perform these installations as well.
 
 """
+from ez_setup import use_setuptools
+use_setuptools()
+
 from setuptools import setup
 
 from uvspec.version import get_version 
 
 
 version = get_version()
-with open('README.md') as f:
+
+with open('README.rst') as f:
     long_description = f.read()
 
 setup(name='uvspec',
       version=version,
       packages=['uvspec', 'uvspec.config'],
       scripts=['uvspec/scripts/uvspecgen'],
-      package_data={'uvspec': ['tests/*']},
-      install_requires=['argparse', 'cclib>=1.0', 'configparser', 'matplotlib'],
+      install_requires=['argparse', 'cclib>=1.0', 'configparser'],
       description='Gaussian UV-Vis spectrum generation',
       maintainer='Li Research Group',
-      maintainer_email='gaussiantoolkit@gmail.com',
+      maintainer_email='liresearchgroupuw@gmail.com',
       url='http://github.com/gaussiantoolkit/uvspecgen/',
       license='http://www.gnu.org/licenses/gpl.html',
       long_description=long_description,

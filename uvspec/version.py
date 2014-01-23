@@ -14,7 +14,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Return the program version number.
+"""Store and return the program version number.
 
 The version number is stored as a 4-item tuple: (MAJOR, MINOR, PATCH, BUILD).
 If BUILD is greater than zero, the current version is a beta release.

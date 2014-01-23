@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 #
-# Generate UV-Vis spectra from Gaussian09 TDHF/TDDFT log files. 
-# Copyright (C) 2013  Gaussian Toolkit
+# Generate UV-Vis spectra from electronic structure TDHF/TDDFT output files. 
+# Copyright (C) 2014 Li Research Group (University of Washington) 
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by

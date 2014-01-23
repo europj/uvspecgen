@@ -14,11 +14,11 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""UV-Vis spectrum generation from Gaussian09 TDHF/TDDFT log files.
+"""Generate UV-Vis spectra from electronic structure TDHF/TDDFT output files.
 
-This program uses the uvspec Python module for generating UV-Vis spectra
-from Gaussian09 TDHF/TDDFT log files.  Alternatively, the uvspec module can
-be imported into your own programs for use of the AbsorptionSpectrum class.
+The top-level and main functions for the ``uvspecgen`` script are stored
+here.  Functions for updating and resetting the Gaussian fit parameters are
+defined here.
 
 """
 import sys
@@ -28,20 +28,29 @@ from uvspec.config.settings import ConfigFile
 from uvspec.spectrum import AbsorptionSpectrum
 
 
-def config_fit_parameters():
+def _update_fit_parameters():
+    # Update the fit parameters in the configuration file with the values
+    # provdied by the user at run-time.  If no values are specified, the
+    # current default values are maintained.
     config = ConfigFile()
-    for parameter,value in settings.parameters.iteritems():
+    for parameter, value in settings.parameters.iteritems():
         config.update(parameter, value)
     print ' Fit paramters have been updated'
 
 
-def reset_fit_parameters():
-    config = ConfigFile()
-    config.reset()
+def _reset_fit_parameters():
+    # Reset the fit parameters to their originally installed default values.
+    ConfigFile().reset()
     print ' Fit parameters have been reset to their original default values'
 
 
-def generate_spectrum():
+def _generate_spectrum():
+    # Spectrum generation using the ``AbsorptionSpectrum`` class and methods.
+    # If multiple output files are to be joined, an instance of the
+    # ``AbsorptionSpectrum`` class is created using the first output
+    # filename.  The remianing output filenames are passed to the ``join()``
+    # method and processed there.  Creation of the output file and plotting
+    # of the spectrum are also processed here.
     spectrum = AbsorptionSpectrum(settings.logfile[0],
                                   settings.parameters,
                                   settings.outfile)
@@ -57,15 +66,27 @@ def generate_spectrum():
 
 
 def main():
+    """The core function that drives the ``uvspecgen`` program.
+
+    First handle updates/resetting of the configuration file containing the
+    Gaussian fit parameters.  The ``uvspecgen`` program can be run without
+    an electronic structure output filename specified solely for the purposes
+    of updating/resetting the Gaussian fit parameters in the configuration
+    file.
+
+    If the ``--save`` or ``--reset`` flag is not specified, and a logfile is
+    not given, the program will terminate with an error message and usage
+    instructions.
+
+    """
     if settings.save:
-        config_fit_parameters()
+        _update_fit_parameters()
     elif settings.reset:
-        reset_fit_parameters() 
+        _reset_fit_parameters() 
 
     if settings.logfile:
-        generate_spectrum()
+        _generate_spectrum()
     elif not settings.save and not settings.reset:
-        print ' [ERROR] Must specify at least one logfile name'
-        sys.exit()
+        settings.parser.error('Must specify at least one logfile name')
     else:
         sys.exit()
