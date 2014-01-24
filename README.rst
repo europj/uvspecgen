@@ -39,6 +39,20 @@ electronic structure programs
 * Jaguar
 
 
+Dependencies
+------------
+The ``uvspecgen`` script requires the ``argparse`` and ``configparser`` modules,
+which are installed using the ``setup.py`` script as described below.  For
+plotting spectra, the ``matplotlib`` package is required.  For information on
+how to install ``matplotlib``, visit http://www.matplotlib.org.
+
+The ``uvspec`` module uses the ``cclib`` parsing library to extract the
+TDHF/TDDFT excited state energies and oscillator strengths, which is installed
+when using the ``setup.py`` script as described below.  The ``cclib`` requires
+the ``numpy`` package, which is **not** installed using the ``setup.py`` script.
+For information on how to install ``numpy``, visit http://www.numpy.org.
+
+
 Installation
 ------------
 Installations are best performed using the ``setuptools`` Python package via
