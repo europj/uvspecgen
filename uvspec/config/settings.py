@@ -38,8 +38,15 @@ the default values or reset them to the installed default values.
 import argparse
 import configparser
 import os.path
+import sys
 
 from uvspec.version import get_version
+
+
+DEFAULT_FIT_PARAMETERS = {'grid': 0.02,
+                          'range': 2.50,
+                          'sigma': 0.12,
+                          'shift': 0.00}
 
 
 class ConfigFile():
@@ -60,10 +67,11 @@ class ConfigFile():
         self.path = os.path.expanduser('~/.uvspecgen')
         self.filename = os.path.join(self.path, 'uvspecgen.conf')
         self.config = configparser.ConfigParser()
-        self.default = {'grid': '0.02',
-                        'range': '2.50',
-                        'sigma': '0.12',
-                        'shift': '0.00'}
+
+        self.default = {}
+        for param, value in DEFAULT_FIT_PARAMETERS.iteritems():
+            self.default[param] = str(value)
+
         if not os.path.exists(self.path):
             self.create()
 
@@ -191,7 +199,7 @@ class Settings():
         # Options to modify the output data
         parser.add_argument(
             '--nometa',
-            #default = 'False',
+            default = False,
             action = 'store_true',
             help = 'do not print spectrum metadata to output file')
         parser.add_argument(
@@ -245,3 +253,15 @@ class Settings():
             action = 'version',
             version = self._header)
         return parser
+
+
+def error(message, die=True):
+    """Print `message` with `[ERROR]` heading and exit the program.
+
+    This function prints ` [ERROR] ``message``` and exits unless `die` is
+    set to False.
+
+    """
+    print ' [ERROR] %s' % message
+    if die:
+        sys.exit(1)

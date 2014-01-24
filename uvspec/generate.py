@@ -46,21 +46,16 @@ def _reset_fit_parameters():
 
 def _generate_spectrum():
     # Spectrum generation using the ``AbsorptionSpectrum`` class and methods.
-    # If multiple output files are to be joined, an instance of the
-    # ``AbsorptionSpectrum`` class is created using the first output
-    # filename.  The remianing output filenames are passed to the ``join()``
-    # method and processed there.  Creation of the output file and plotting
-    # of the spectrum are also processed here.
-    spectrum = AbsorptionSpectrum(settings.logfile[0],
-                                  settings.parameters,
-                                  settings.outfile)
+    spectrum = AbsorptionSpectrum()
+
     if settings.join:
-        spectrum.join(settings.logfile[1:])
+        spectrum.join(settings.logfile)
     else:
-        spectrum.extract()
-        spectrum.generate()
+        spectrum.extract(settings.logfile[0])
     
-    spectrum.write(settings.output, settings.nometa)
+    spectrum.generate(settings.parameters)
+    
+    spectrum.write(settings.outfile, settings.output, settings.nometa)
     
     if settings.plot:
         spectrum.plot()
