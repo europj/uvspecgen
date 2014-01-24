@@ -16,27 +16,29 @@ calculations performed by several widely-used electronic structure programs
 and generates a line shape function by summing together Gaussian functions
 fit to each peak.
 
-This package includes the `uvspecgen` script for quickly processing electronic
+This package includes the ``uvspecgen`` script for quickly processing electronic
 structure TDHF/TDDFT output files to produce a file containing the discrete
 spectrum and line shape function for plotting.  This script uses the included
-`uvspec` module, which can be imported into your own Python scripts for use of
-the `AbsorptionSpectrum` class, which parses a TDHF/TDDFT output file and
+``uvspec`` module, which can be imported into your own Python scripts for use of
+the ``AbsorptionSpectrum`` class, which parses a TDHF/TDDFT output file and
 stores the excited state energies, oscillator strengths, and line shape
 function as attributes of the class.
 
 
 Supported Programs
 ------------------
-This program uses the `cclib` Python library (ref. 1) for parsing and
+This program uses the ``cclib`` Python library (ref. 1) for parsing and
 interpreting the results of computational chemistry packages.  It currently
 supports parsing the results of TDHF/TDDFT calculations for the following
-electronic structure programs:
- * ADF
- * GAMESS
- * Gaussian03
- * Gaussian09
- * Jaguar
+electronic structure programs
 
+* ADF
+* GAMESS
+* Gaussian03
+* Gaussian09
+* Jaguar
+
+*****
 
 Installation
 ------------
@@ -45,7 +47,8 @@ the included `setup.py` file. To learn more about custom installations, visit
 the Installing Python Modules documentation. Standard installations are
 described below.
 
-#### Install as Root ####
+**Install as Root**
+
 If you have root permissions on the target system, run the following commands
 at the command prompt::
 
@@ -53,7 +56,8 @@ at the command prompt::
   cd uvspec-$VERSION
   sudo python setup.py install
 
-#### Install a Local Copy ####
+**Install a Local Copy**
+
 For users that do not have root privileges, a local installation can be
 performed.  The installation location is system-specific, but can quickly
 determined by running::
@@ -73,9 +77,10 @@ The installation should then be performed as follows::
 The source files uvspec-$VERSION/ and uvspec-$VERSION.tar.gz can be deleted
 after installation.
 
+*****
 
 References
 ----------
- [1] N. M. O'Boyle, A. L. Tenderholt, K. M. Langner, cclib: a library for
-     package-independent computational chemistry algorithms, J. Comp. Chem.
-     29 (5), pp. 839-845, 2008.
+1. N. M. O'Boyle, A. L. Tenderholt, K. M. Langner, cclib: a library for
+   package-independent computational chemistry algorithms, J. Comp. Chem.
+   29 (5), pp. 839-845, 2008.
