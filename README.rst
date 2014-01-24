@@ -16,13 +16,13 @@ calculations performed by several widely-used electronic structure programs
 and generates a line shape function by summing together Gaussian functions
 fit to each peak.
 
-This package includes the ``uvspecgen`` script for quickly processing electronic
-structure TDHF/TDDFT output files to produce a file containing the discrete
-spectrum and line shape function for plotting.  This script uses the included
-``uvspec`` module, which can be imported into your own Python scripts for use of
-the ``AbsorptionSpectrum`` class, which parses a TDHF/TDDFT output file and
-stores the excited state energies, oscillator strengths, and line shape
-function as attributes of the class.
+This package includes the ``uvspecgen`` script for quickly processing
+electronic structure TDHF/TDDFT output files to produce a file containing
+the discrete spectrum and line shape function for plotting.  This script uses
+the included ``uvspec`` module, which can be imported into your own Python
+scripts for use of the ``AbsorptionSpectrum`` class, which parses a TDHF/TDDFT
+output file and stores the excited state energies, oscillator strengths, and
+line shape function as attributes of the class.
 
 
 Supported Programs
@@ -38,12 +38,11 @@ electronic structure programs
 * Gaussian09
 * Jaguar
 
-*****
 
 Installation
 ------------
-Installations are best performed using the `setuptools` Python package via
-the included `setup.py` file. To learn more about custom installations, visit
+Installations are best performed using the ``setuptools`` Python package via
+the included ``setup.py`` file. To learn more about custom installations, visit
 the Installing Python Modules documentation. Standard installations are
 described below.
 
@@ -64,7 +63,7 @@ determined by running::
 
   ./setup.py install --help
 
-and look for the text accompanying the `--user` option.  More information on
+and look for the text accompanying the ``--user`` option.  More information on
 local installations can be found at
 http://docs.python.org/2/install/#alternate-installation-the-user-scheme.
 
@@ -74,10 +73,9 @@ The installation should then be performed as follows::
   cd uvspec-$VERSION
   python setup.py install --user
 
-The source files uvspec-$VERSION/ and uvspec-$VERSION.tar.gz can be deleted
-after installation.
+The source files ``uvspec-$VERSION/`` and ``uvspec-$VERSION.tar.gz`` can be
+deleted after installation.
 
-*****
 
 References
 ----------
