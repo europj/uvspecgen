@@ -57,6 +57,7 @@ def _generate_spectrum():
     if settings.join:
         spectrum.join(settings.logfile[1:])
     else:
+        spectrum.extract()
         spectrum.generate()
     
     spectrum.write(settings.output, settings.nometa)

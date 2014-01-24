@@ -81,16 +81,18 @@ class AbsorptionSpectrum(object):
     Methods are also provided for writing the absorption spectrum data to a
     file and for plotting the absorption spectrum:
 
-        generate()
+        extract()
             Runs the extractor method that parses the excited state energies
             and oscillator strengths from a TDHF/TDDFT log file.  The energies
             and oscillator strengths are stored in lists as attributes of the
-            class.  Also runs the method for creating the line shape function
-            by forming the sum of Gaussian functions fit to each excited
-            state.  The fitting parameters can be modified by passing a
-            dictionary of fit parameters to the instance call of the class.
-            The energy scale and intensities are stored in lists as attributes
-            of the class.
+            class.
+
+        generate()
+            Runs the method for creating the line shape function by forming
+            the sum of Gaussian functions fit to each excited state.  The
+            fitting parameters can be modified by passing a dictionary of fit
+            parameters to the instance call of the class.  The energy scale
+            and intensities are stored in lists as attributes of the class.
     
         join()
             This method takes a list of logfile names, parses the excited
@@ -162,16 +164,26 @@ class AbsorptionSpectrum(object):
         self.wavelength = []
         self.energy = []                                 
 
-    def generate(self):
-        """Generate the absorption spectrum from the logfile.
+    def extract(self):
+        """Parse excited state energies and oscillator strengths from logfile.
         
         The excited state energies, wavelengths, and oscillator strengths
-        are extracted from the logfile and a Gaussian line shape function
-        is generated from the discrete spectrum.
+        are extracted from the logfile as lists and stored in the
+        ``excited_state_energy``, ``excited_state_wavelength``, and
+        ``oscillator_strength`` attributes, respectively.
 
         """
         logfile = Logfile(self.logfile)
         self._get_excited_state_data(logfile)
+
+    def generate(self):
+        """Generate the absorption spectrum from the TDHF/TDDFT data.
+        
+        A Gaussian line shape function is generated from the discrete spectrum
+        stored in the ``excited_state_energy`` and ``oscillator_strength``
+        attributes.
+
+        """
         self._generate_spectrum()
 
     def join(self, logfiles):
@@ -180,12 +192,12 @@ class AbsorptionSpectrum(object):
         For each given logfile, a ``Logfile`` object is created.  The excited
         state energies and oscillator strengths are compared and duplicates
         are removed.  The current ``AbsorptionSpectrum`` object is updated
-        with the joined exicted states from all given logfiles.
+        with the joined excited states from all given logfiles.
 
         """
         logfiles.insert(0, self.logfile)
         energy, strength = self._remove_duplicates(logfiles)
-        # Need a ``Logfile`` obejct to assign energy and strength for use in
+        # Need a ``Logfile`` object to assign energy and strength for use in
         # the ``_get_excited_state_data()`` and ``_generate_spectrum()``
         # methods.
         _logfile = Logfile(self.logfile)
