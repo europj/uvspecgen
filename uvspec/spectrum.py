@@ -354,8 +354,8 @@ class AbsorptionSpectrum(object):
             plot.show()
         except ImportError:
             print (' [ERROR] The ``matplotlib`` package is required'
-                   ' to plot the spectrum\n\n'
-                   ' ``matplotlib`` is free to download at'
+                   ' to plot the spectrum\n'
+                   '         ``matplotlib`` is free to download at'
                    ' http://www.matplotlib.org')
 
     def _get_outfile_name(self, outfile):

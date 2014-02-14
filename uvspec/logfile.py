@@ -35,9 +35,16 @@ import sys
 from uvspec.config.settings import error
 
 try:
+    import numpy
+except ImportError:
+    error('The ``numpy`` package is required\n'
+          '         ``numpy`` is free to download at http://www.numpy.org')
+
+try:
     from cclib.parser import ccopen
 except ImportError:
-    error('cclib is required')
+    error('The ``cclib`` package is required\n'
+          '         ``cclib`` is free to download at http://cclib.sf.net')
 
 
 class Logfile(object):
