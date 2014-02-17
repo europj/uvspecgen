@@ -189,10 +189,15 @@ class AbsorptionSpectrum(object):
             error('Incomplete parameter definitions in AbsorptionSpectrum')
 
         if any(self.excited_state_energy) and any(self.oscillator_strength):
-            self._generate_spectrum()
+            if len(self.excited_state_energy) == len(self.oscillator_strength):
+                self._generate_spectrum()
+            else:
+                error('The attributes ``excited_state_energy`` and '
+                      '``oscillator_strength`` must have the same number '
+                      'of elements')
         else:
-            error('The attributes ``excited_state_energy`` and/or'
-                  ' ``oscillator_strength`` are empty')
+            error('The attributes ``excited_state_energy`` and/or '
+                  '``oscillator_strength`` are empty')
 
     def join(self, logfiles):
         """Merge excited states from ``logfiles`` into current specturm.
@@ -247,7 +252,7 @@ class AbsorptionSpectrum(object):
         elif self.logfile:
             outfile_name = self.logfile
         else:
-            error('An ``outfile`` name must be specified')
+            error('The ``write()`` method requires an ``outfile`` name')
         self.outfile = self._get_outfile_name(outfile_name)
 
         # Setup print control flags; by default, everything is printed
