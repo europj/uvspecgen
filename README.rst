@@ -83,12 +83,36 @@ http://docs.python.org/2/install/#alternate-installation-the-user-scheme.
 
 The installation should then be performed as follows::
 
-  tar xvzf uvspec-$VERSION.tar.gz
+  tar xzf uvspec-$VERSION.tar.gz
   cd uvspec-$VERSION
   python setup.py install --user
 
 The source files ``uvspec-$VERSION/`` and ``uvspec-$VERSION.tar.gz`` can be
 deleted after installation.
+
+
+Using the AbsorptionSpectrum Class
+----------------------------------
+The ``AbsorptionSpectrum`` class and methods can be used in your own scripts.
+An example of its usage is provided below::
+
+    from uvspec.spectrum import AbsorptionSpectrum
+
+    AS = AbsorptionSpectrum()
+
+    AS.excited_state_energy = [1,2,3]
+    AS.oscillator_strength = [0.1,0.2,0.3]
+
+    AS.generate()
+    AS.write('api-test')
+    AS.plot()
+
+Rather than manually assigning the attributes ``excited_state_energy`` and
+``oscillator_strength``, you can call the ``extract(logfile)`` method with a
+logfile name provide as a string.  This will extract the excited state energies
+and oscillator strengths into these attributes automatically.  The ``plot()``
+method only needs to be called if you want to generate a ``matplotlib`` plot of
+the line shape function.
 
 
 References
