@@ -8,6 +8,9 @@
 tests/*
 *.log
 
+# distribution packages
+dist/*
+
 # MANIFEST file
 MANIFEST
 
