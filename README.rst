@@ -109,7 +109,7 @@ An example of its usage is provided below::
 
 Rather than manually assigning the attributes ``excited_state_energy`` and
 ``oscillator_strength``, you can call the ``extract(logfile)`` method with a
-logfile name provide as a string.  This will extract the excited state energies
+logfile name provided as a string.  This will extract the excited state energies
 and oscillator strengths into these attributes automatically.  The ``plot()``
 method only needs to be called if you want to generate a ``matplotlib`` plot of
 the line shape function.
