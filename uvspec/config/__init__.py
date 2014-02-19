@@ -14,17 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-"""Store and return the program version number.
-
-The version number is stored as a 4-item tuple: (MAJOR, MINOR, PATCH, BUILD).
-If BUILD is greater than zero, the current version is a beta release.
-
-"""
-version = (1, 0, 0, 2)
+"""Allow for settings import using `from uvspec.config import settings`."""
+from uvspec.config.settings import Settings 
 
 
-def get_version():
-    """Return the version number as MAJOR.MINOR.PATCH.BUILD"""
-    main = '.'.join(str(x) for x in version[:2])
-    sub = 'b' + str(version[3]) if version[3] > 0 else ''
-    return str(main + sub) 
+settings = Settings()

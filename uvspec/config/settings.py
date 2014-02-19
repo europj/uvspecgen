@@ -1,0 +1,267 @@
+# Generate UV-Vis spectra from electronic structure TDHF/TDDFT output files. 
+# Copyright (C) 2014 Li Research Group (University of Washington) 
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Command line user interface and configuration for the ``uvspecgen`` script.
+
+Run-time options and settings for the ``uvspecgen`` script are parsed from
+the command line using the ``argparse`` module.  The ``ArgumentParser`` class
+is responsible for parsing the command line input and for generating program
+usage and help documentation.  The settings parsed from the command line and
+from the configuration file can be accessed by importing the settings into
+any module using
+
+    from uvspec.config import settings
+
+and calling any available setting using `setting.X` where `X` is the
+name of the setting.
+
+The default parameters for the Gaussian fits of the TDHF/TDDFT stick spectra
+are read from a configuration file using the ``configparser`` module.  The
+``ConfigFile`` class is responsible for creating the configuration file and
+provides methods for reading the options and for allowing the user to update
+the default values or reset them to the installed default values.
+
+"""
+import argparse
+import configparser
+import os.path
+import sys
+
+from uvspec.version import get_version
+
+
+DEFAULT_FIT_PARAMETERS = {'grid': 0.02,
+                          'range': 2.50,
+                          'sigma': 0.12,
+                          'shift': 0.00}
+
+
+class ConfigFile():
+    """Configuration file handling.
+    
+    This class uses an instance of the ``ConfigParser`` class from the
+    ``configparser`` module to create, read, and update the configuration
+    file containing the Gaussian fit parameters.  The configuration file is
+    created in a hidden ``.uvspecgen`` directory in the user's HOME path with
+    the default values.  Using the ``uvspecgen`` script, the user can update
+    these default values for the program's subsequent use.  Methods for
+    creating, reading, resetting, and updating the fit parameters in the 
+    configuration file are provided.
+    
+    """
+    def __init__(self):
+        """Set attributes and create config file if it does not exist.""" 
+        self.path = os.path.expanduser('~/.uvspecgen')
+        self.filename = os.path.join(self.path, 'uvspecgen.conf')
+        self.config = configparser.ConfigParser()
+
+        self.default = {}
+        for param, value in DEFAULT_FIT_PARAMETERS.iteritems():
+            self.default[param] = str(value)
+
+        if not os.path.exists(self.path):
+            self.create()
+
+    def create(self):
+        """Create the configuration file with the default values.
+
+        Create the ``~/.uvspecgen`` directory only if it does not already
+        exist.  Create the configuration file with the default values.
+
+        """
+        try:
+            os.mkdir(self.path)
+        except OSError:
+            pass
+        self.config['FitParameters'] = self.default
+        self._write_config()
+
+    def read(self):
+        """Return a dict with fit parmaeter values read from config file.
+        
+        The parameter values, which are read in as strings, are converted
+        to float types before the dict object is returned.
+
+        """
+        self.config.read(self.filename) 
+        params = self.config['FitParameters']
+        # Convert the parameter values from strings to floats
+        params = dict([k, float(v)] for k, v in params.iteritems())
+        return params 
+
+    def reset(self):
+        """Reset all parameter values to their installed defaults."""
+        self.create()
+
+    def update(self, parameter, value, section='FitParameters'):
+        """Update ``parameter`` to ``value`` in config file."""
+        self.config.read(self.filename)
+        self.config[section][parameter] = str(value)
+        self._write_config()
+
+    def _write_config(self):
+        # Write the configuration's files contents to disk.
+        with open(self.filename, 'w') as configfile:
+            self.config.write(configfile)
+
+
+class Settings():
+    """Process command line input and generate help documentation.
+
+    This class uses the ``ArgumentParser`` object of the ``argparse`` module
+    to define and parse program options from the command line input.  Usage
+    and help documentation are automatically generated by the
+    ``ArgumentParser`` object.
+
+    """
+    def __init__(self):
+        """Define attributes from the parsed command line input.
+
+        The ``Settings`` class has no private methods.  The
+        ``_parse_command_line_input()`` method is executed when the object
+        is initialized and all parsed options are set as attributes of the
+        ``Settings`` object.
+
+        """
+        self._version = get_version()
+        self._header = ' '.join(['%(prog)s', self._version])
+
+        self._defaults = ConfigFile().read()
+
+        # The parser is stored as an attribute for printing error messages,
+        # usage, and help documentation using `settings.parser.error(message)`
+        # or `settings.parser.print_help()`.
+        self.parser = self._command_line_input_parser()
+        self._clinput = self.parser.parse_args()
+
+        self.logfile = self._clinput.logfile
+        self.outfile = self._clinput.outfile
+        self.join = self._clinput.join
+        self.plot = self._clinput.plot
+        self.output = self._clinput.output
+        self.nometa = self._clinput.nometa
+        self.parameters = {'grid': self._clinput.grid,
+                           'range': self._clinput.range,
+                           'sigma': self._clinput.sigma,
+                           'shift': self._clinput.shift}
+        self.save = self._clinput.save
+        self.reset = self._clinput.reset
+
+    def _command_line_input_parser(self):
+        # Return an ArgumentParser object. 
+        parser = argparse.ArgumentParser(
+            formatter_class = argparse.ArgumentDefaultsHelpFormatter,
+            description = 'Generate UV-Vis spectrum from TDHF/TDDFT data',
+            epilog = 'Report bugs to <gaussiantoolkit@gmail.com>')
+        
+        # Required positional argument, the input (.log) file
+        parser.add_argument(
+            'logfile',
+            nargs = '*',
+            help = 'input TDHF/TDDFT logfile')
+        
+        # Option to specify the output file name
+        parser.add_argument(
+            '-O',
+            '--outfile',
+            default = None,
+            help = ('output filename, .spec.txt will be appended, '
+                    '<logfile>.spec.txt is used as default'))
+
+        # Option to join multiple log files into one spectrum
+        parser.add_argument(
+            '-j',
+            '--join',
+            action = 'store_true',
+            help = 'join multiple logfile spectra into one spectrum')
+        
+        # Optional flag to plot the spectrum using matplotlib, if available
+        parser.add_argument(
+            '-p',
+            '--plot',
+            action = 'store_true',
+            help = 'display a plot of the absorbance spectrum if matplotlib\
+                    is available')
+        
+        # Options to modify the output data
+        parser.add_argument(
+            '--nometa',
+            default = False,
+            action = 'store_true',
+            help = 'do not print spectrum metadata to output file')
+        parser.add_argument(
+            '-o',
+            '--output',
+            default = 'all',
+            choices = ['all', 'curve', 'sticks'],
+            help = 'specify results to print in output file')
+        
+        # Optional arguments, to modify the parameters of the Gaussian fit
+        parser.add_argument(
+            '-g',
+            '--grid',
+            default = self._defaults['grid'],
+            type = float,
+            help = 'set grid spacing value for the Gaussian curve')
+        parser.add_argument(
+            '-r',
+            '--range',
+            default = self._defaults['range'],
+            type = float,
+            help = ('set the spacing below and above the smallest and '
+                    'largest excited state energy for plotting'))
+        parser.add_argument(
+            '-s',
+            '--sigma',
+            default = self._defaults['sigma'],
+            type = float,
+            help = 'set value for Gaussian broadening constant sigma')
+        parser.add_argument(
+            '-S',
+            '--shift',
+            default = self._defaults['shift'],
+            type = float,
+            help = 'set shift for the starting point of the Gaussian curve')
+       
+        # Flags for configuring program-wide default fit parameters
+        config = parser.add_mutually_exclusive_group()
+        config.add_argument(
+            '--save',
+            action = 'store_true',
+            help = 'save the specified fit parameters as the default values')
+        config.add_argument(
+            '--reset',
+            action = 'store_true',
+            help = 'reset the fit parameters to the original default values')
+
+        # Print program version
+        parser.add_argument(
+            '--version',
+            action = 'version',
+            version = self._header)
+        return parser
+
+
+def error(message, die=True):
+    """Print `message` with `[ERROR]` heading and exit the program.
+
+    This function prints ` [ERROR] ``message``` and exits unless `die` is
+    set to False.
+
+    """
+    print ' [ERROR] %s' % message
+    if die:
+        sys.exit(1)

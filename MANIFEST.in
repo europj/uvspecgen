@@ -1,11 +1,1 @@
-include LICENSE.txt
-include README.md
-include setup.py
-include config/setup.cfg
-include lib/__init__.py
-include lib/argparse.py
-include scripts/uvspecgen
-include uvspec/__init__.py
-include uvspec/ui.py
-include uvspec/uvspec.py
-include uvspec/version.py
+include ez_setup.py
